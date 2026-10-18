@@ -1,5 +1,7 @@
+import { PLATFORM_CONFIG, firebaseConfigured } from "../shared/platform-config.js";
+
 export const CONFIG = {
-  mode: "preview",
+  mode: firebaseConfigured() ? "firebase" : "preview",
   appName: "Avaliação Antropométrica",
   clinician: {
     name: "Thales Chateaubriand",
@@ -9,9 +11,10 @@ export const CONFIG = {
     name: "Clínica",
     logoUrl: ""
   },
-  supabase: {
-    url: "",
-    anonKey: ""
+  firebase: PLATFORM_CONFIG.firebase,
+  platform: {
+    organizationId: PLATFORM_CONFIG.organizationId,
+    ownerPortalPath: "../owner/"
   },
   cliniv: {
     enabled: false,
