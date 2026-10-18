@@ -1,4 +1,4 @@
-import { PLATFORM_CONFIG, firebaseConfigured } from "../shared/platform-config.js";
+import { PLATFORM_CONFIG, firebaseConfigured } from "../shared/platform-config.js?v=savefix4";
 
 export const CONFIG = {
   mode: firebaseConfigured() ? "firebase" : "preview",
