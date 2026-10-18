@@ -1,4 +1,4 @@
-const VERSION = "bioevolucao-v7";
+const VERSION = "bioevolucao-v8";
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
