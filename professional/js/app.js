@@ -25,20 +25,68 @@ function render(){
 }
 
 function renderLogin(){
-  var invite=new URLSearchParams(location.search).get("invite");
+  var params=new URLSearchParams(location.search);
+  var invite=params.get("invite");
+  var ownerToken=params.get("owner");
   var real=firebaseConfigured();
-  app.innerHTML='<main class="shell"><section class="card login"><div class="brand" style="margin-bottom:20px"><div class="logo">AA</div><div><h1 style="font-size:30px">'+CONFIG.appName+'</h1><p>'+(real?"Acesso seguro":"Versão profissional em demonstração")+'</p></div></div>'+
-  (invite&&real?'<div class="notice" style="margin-bottom:14px"><strong>Convite recebido.</strong> Use o mesmo e-mail que foi autorizado. Se esta for sua primeira entrada, escolha uma senha e clique em “Criar conta e ativar convite”.</div>':'')+
-  '<form id="loginForm" class="grid" style="grid-template-columns:1fr"><div class="field"><label>E-mail</label><input id="loginEmail" type="email" required placeholder="seu@email.com"></div><div class="field"><label>Senha</label><input id="loginPassword" type="password" required minlength="6" placeholder="••••••••"></div>'+(invite&&real?'<div class="field"><label>Nome</label><input id="loginName" placeholder="Nome completo"></div>':'')+'<button class="btn primary">Entrar</button>'+(invite&&real?'<button class="btn soft" id="inviteSignup" type="button">Criar conta e ativar convite</button>':'')+'<button class="btn" type="button" data-action="forgot">Recuperar senha</button><div id="loginStatus" class="small muted"></div></form>'+
+  var pendingBootstrap=Boolean(ownerToken&&real);
+  var currentUser=state.user;
+
+  if(pendingBootstrap&&currentUser){
+    app.innerHTML='<main class="shell"><section class="card login"><div class="brand" style="margin-bottom:20px"><div class="logo">AA</div><div><h1 style="font-size:30px">'+CONFIG.appName+'</h1><p>Ativação do proprietário</p></div></div>'+
+      '<div class="notice"><strong>Conta criada.</strong><br>Enviamos uma confirmação para <strong>'+esc(currentUser.email||"seu e-mail")+'</strong>. Abra o e-mail, confirme o endereço e depois volte aqui.</div>'+
+      '<div class="actions" style="margin-top:16px"><button class="btn primary" id="ownerVerified" type="button">Já confirmei meu e-mail</button><button class="btn" id="resendVerification" type="button">Reenviar verificação</button><button class="btn" data-action="logout" type="button">Trocar conta</button></div><div id="loginStatus" class="small muted" style="margin-top:12px"></div></section></main>';
+
+    document.querySelector("#ownerVerified").addEventListener("click",async function(){
+      var status=document.querySelector("#loginStatus");
+      status.textContent="Verificando...";
+      try{
+        var refreshed=await FirebaseClient.refreshUser();
+        if(!refreshed||!refreshed.emailVerified){status.textContent="O e-mail ainda não aparece como verificado. Confirme pelo link recebido e tente novamente.";return;}
+        var membership=await FirebaseClient.bootstrapOwner(ownerToken);
+        state.membership=membership;
+        state.auth=true;
+        history.replaceState(null,"",location.pathname);
+        await store.load();
+        render();
+      }catch(err){status.textContent=humanAuthError(err)}
+    });
+
+    document.querySelector("#resendVerification").addEventListener("click",async function(){
+      try{await FirebaseClient.sendVerification();document.querySelector("#loginStatus").textContent="Novo e-mail de verificação enviado."}
+      catch(err){document.querySelector("#loginStatus").textContent=humanAuthError(err)}
+    });
+    return;
+  }
+
+  app.innerHTML='<main class="shell"><section class="card login"><div class="brand" style="margin-bottom:20px"><div class="logo">AA</div><div><h1 style="font-size:30px">'+CONFIG.appName+'</h1><p>'+(pendingBootstrap?"Criar conta do proprietário":real?"Acesso seguro":"Versão profissional em demonstração")+'</p></div></div>'+
+  (pendingBootstrap?'<div class="notice" style="margin-bottom:14px"><strong>Primeiro acesso do proprietário.</strong> Crie sua própria senha. Ela não será compartilhada comigo nem armazenada no código.</div>':invite&&real?'<div class="notice" style="margin-bottom:14px"><strong>Convite recebido.</strong> Use o mesmo e-mail que foi autorizado. Se esta for sua primeira entrada, escolha uma senha e clique em “Criar conta e ativar convite”.</div>':'')+
+  '<form id="loginForm" class="grid" style="grid-template-columns:1fr"><div class="field"><label>E-mail</label><input id="loginEmail" type="email" required placeholder="seu@email.com"></div><div class="field"><label>Senha</label><input id="loginPassword" type="password" required minlength="6" placeholder="••••••••"></div>'+((invite||pendingBootstrap)&&real?'<div class="field"><label>Nome</label><input id="loginName" placeholder="Nome completo"></div>':'')+
+  (pendingBootstrap?'<button class="btn primary" id="ownerSignup" type="button">Criar minha conta OWNER</button>':'<button class="btn primary">Entrar</button>')+
+  (invite&&real?'<button class="btn soft" id="inviteSignup" type="button">Criar conta e ativar convite</button>':'')+
+  (!pendingBootstrap?'<button class="btn" type="button" data-action="forgot">Recuperar senha</button>':'')+
+  '<div id="loginStatus" class="small muted"></div></form>'+
   '<p class="notice" style="margin-top:16px">'+(real?'Somente usuários autorizados podem acessar dados. Cada profissional usa seu próprio login.':'Modo de demonstração local. O Firebase ainda não foi conectado a este ambiente.')+'</p></section></main>';
 
   document.querySelector("#loginForm").addEventListener("submit",async function(e){
     e.preventDefault();
+    if(pendingBootstrap)return;
     var status=document.querySelector("#loginStatus");
     if(!real){state.auth=true;state.membership={globalRole:"owner",status:"active"};render();return;}
     status.textContent="Entrando...";
     try{await FirebaseClient.signIn(document.querySelector("#loginEmail").value.trim(),document.querySelector("#loginPassword").value)}
     catch(err){status.textContent=humanAuthError(err)}
+  });
+
+  var ownerSignup=document.querySelector("#ownerSignup");
+  if(ownerSignup)ownerSignup.addEventListener("click",async function(){
+    var status=document.querySelector("#loginStatus");
+    status.textContent="Criando sua conta...";
+    try{
+      await FirebaseClient.signUp(document.querySelector("#loginEmail").value.trim(),document.querySelector("#loginPassword").value,document.querySelector("#loginName").value.trim());
+      await FirebaseClient.sendVerification();
+      status.textContent="Conta criada. Verifique seu e-mail para concluir.";
+    }catch(err){status.textContent=humanAuthError(err)}
   });
 
   var signup=document.querySelector("#inviteSignup");
@@ -410,11 +458,19 @@ async function bootstrapAuth(){
       return;
     }
     var membership=await FirebaseClient.getMembership(user.uid);
-    var invite=new URLSearchParams(location.search).get("invite");
+    var params=new URLSearchParams(location.search);
+    var invite=params.get("invite");
+    var ownerToken=params.get("owner");
     if(!membership&&invite){
       try{membership=await FirebaseClient.activateInvite(invite)}catch{}
     }
     state.membership=membership;
+    if(!membership&&ownerToken){
+      state.auth=false;
+      state.authReady=true;
+      renderLogin();
+      return;
+    }
     state.auth=Boolean(membership&&membership.status==="active"&&(membership.globalRole==="owner"||membership.globalRole==="admin"||membership.appRoles&&membership.appRoles.anthropometry));
     state.authReady=true;
     if(state.auth){
