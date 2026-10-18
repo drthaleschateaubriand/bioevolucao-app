@@ -170,3 +170,5 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 @media(max-width:720px){
   .ocr-toolbar{grid-template-columns:1fr}
 }
+
+.btn:disabled{opacity:.42;cursor:not-allowed;background:#eef1f3!important;color:#8b96a1!important;border-color:#d8dde2!important;box-shadow:none!important}
