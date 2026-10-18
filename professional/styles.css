@@ -63,4 +63,56 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 .hidden{display:none!important}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.shell{padding:14px}.topbar{align-items:flex-start;flex-direction:column}.grid,.grid.two{grid-template-columns:1fr}.searchbox{flex-direction:column}.kpis{grid-template-columns:1fr 1fr}.brand h1{font-size:26px}}
-@media print{body *{visibility:hidden}.report-page,.report-page *{visibility:visible}.report-page{position:absolute;inset:0;border:0}.no-print{display:none!important}}
+
+.optional-block{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.optional-block summary{cursor:pointer;font-weight:800;color:var(--pine)}
+.graph-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0}
+.graph-panel{margin-top:18px}
+.bar-chart{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fbfdfb;break-inside:avoid}
+.bar-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.bar-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.bar-legend span{display:inline-flex;align-items:center;gap:5px}
+.legend-dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+.legend-dot.lean,.bar-seg.lean{background:#2f7f62}
+.legend-dot.fat,.bar-seg.fat{background:#d8b36a}
+.bar-plot{display:flex;align-items:flex-end;gap:10px;min-height:238px;overflow-x:auto;padding:8px 2px 0}
+.bar-col{min-width:58px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.bar-value{font-size:11px;font-weight:800;margin-bottom:6px}
+.bar-stack{width:38px;display:flex;flex-direction:column;justify-content:flex-end;border-radius:9px 9px 4px 4px;overflow:hidden;background:#eef2ef;box-shadow:inset 0 0 0 1px rgba(31,42,37,.04)}
+.bar-seg{width:100%}
+.bar-date{font-size:10px;color:var(--muted);margin-top:7px}
+.bar-caption{font-size:10px;font-weight:800;color:var(--pine);margin-top:2px}
+.mini-trend{border:1px solid var(--line);border-radius:16px;padding:15px;background:#fff;break-inside:avoid}
+.mini-row{display:grid;grid-template-columns:90px 1fr 70px;gap:8px;align-items:center;margin-top:10px;font-size:11px}
+.mini-track{height:10px;border-radius:999px;background:#edf1ef;overflow:hidden}
+.mini-fill{height:100%;background:var(--pine);border-radius:999px}
+.patient-chart{margin-top:20px}
+.patient-mode .bar-chart{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)}
+.patient-mode .bar-chart-head strong,.patient-mode .bar-value,.patient-mode .bar-date,.patient-mode .bar-caption{color:white}
+.patient-mode .bar-chart .muted,.patient-mode .bar-legend{color:#cbdcd3}
+.report-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:2px solid var(--pine);padding-bottom:16px;margin-bottom:18px}
+.report-sign{text-align:right;font-size:12px}
+.report-section{margin-top:22px;break-inside:auto}
+.report-section h3{font-family:Georgia,serif;margin:0 0 10px;font-size:18px}
+.report-footer{border-top:1px solid var(--line);margin-top:26px;padding-top:16px}
+.report-page table{font-size:12px}
+.report-page .tablewrap{break-inside:auto}
+.report-page tr{break-inside:avoid}
+@media(max-width:900px){.graph-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.bar-chart-head{flex-direction:column}.bar-plot{gap:7px}.bar-col{min-width:48px}.bar-stack{width:32px}.mini-row{grid-template-columns:78px 1fr 62px}}
+@media print{
+  body{background:#fff}
+  body *{visibility:hidden!important}
+  .report-page,.report-page *{visibility:visible!important}
+  .report-page{position:absolute!important;left:0!important;top:0!important;width:100%!important;border:0!important;border-radius:0!important;padding:0!important}
+  .report-page .graph-grid{grid-template-columns:1fr 1fr!important}
+  .report-page .bar-plot{overflow:visible!important}
+  .report-page .bar-chart{box-shadow:none!important}
+  .report-page .tablewrap{overflow:visible!important;border:1px solid #ddd!important}
+  .report-page table{min-width:0!important;width:100%!important}
+  .report-page th:first-child,.report-page td:first-child{position:static!important}
+  .report-page .report-section{page-break-inside:auto}
+  .report-page .bar-chart,.report-page .mini-trend{page-break-inside:avoid}
+  .no-print{display:none!important}
+  @page{size:A4 portrait;margin:12mm}
+}
