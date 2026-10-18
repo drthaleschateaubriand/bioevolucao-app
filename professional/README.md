@@ -1,41 +1,57 @@
 # Avaliação Antropométrica — versão profissional
 
-Esta pasta contém a reconstrução profissional do protótipo BioEvolução.
-
-## Objetivo
-Criar um módulo clínico de composição corporal utilizável de forma independente e preparado para incorporação futura no Cliniv.
+Aplicação clínica de composição corporal, bioimpedância, adipometria e antropometria, preparada para uso independente e para incorporação futura no Cliniv.
 
 ## Estado atual
-A interface desta pasta é uma prévia funcional separada do aplicativo antigo. Ela inclui:
-- login de demonstração;
+
+A versão profissional já utiliza:
+- Firebase Authentication;
+- Cloud Firestore;
+- GitHub Pages;
+- controle de acesso por função;
 - busca e cadastro de paciente;
-- resumo da última avaliação;
 - bioimpedância manual;
-- adipômetro Jackson-Pollock 7 dobras;
-- cintura, quadril e panturrilha;
-- cálculo automático de IMC;
-- cálculo de massa gorda e massa livre de gordura;
-- histórico por datas;
-- seleção de datas;
-- modo de apresentação ao paciente;
-- texto para copiar no prontuário;
-- impressão / PDF pelo navegador;
-- envio por e-mail via cliente local.
+- OCR de múltiplas fotos;
+- leitura de PDFs, inclusive páginas escaneadas;
+- revisão dos dados reconhecidos antes de aplicar;
+- adipometria Jackson-Pollock 7 dobras;
+- circunferências;
+- evolução longitudinal;
+- gráficos separados para bioimpedância e adipômetro;
+- tabela comparativa de medidas;
+- modo paciente;
+- texto para prontuário;
+- relatório imprimível/PDF.
 
-Os dados desta prévia ainda usam armazenamento local. NÃO usar esta versão com dados identificáveis de pacientes.
+## Estrutura
 
-## Próximas conexões obrigatórias antes de produção
-1. Supabase/PostgreSQL para banco em nuvem.
-2. Supabase Auth ou provedor equivalente para e-mail, senha e recuperação.
-3. RLS e permissões por função.
-4. OCR de várias imagens com tela de conferência.
-5. serviço de geração e envio de PDF por e-mail.
-6. auditoria de alterações.
-7. integração/SSO com Cliniv.
+- `index.html` — entrada da aplicação;
+- `js/app.js` — fluxo clínico, OCR, evolução e relatório;
+- `js/calculations.js` — cálculos;
+- `js/data-store.js` — abstração de persistência;
+- `../shared/firebase-client.js` — backend atual;
+- `docs/` — documentação funcional e integração.
 
-## Identidade profissional
+## Integração Cliniv
+
+A versão preferencial de longo prazo é nativa no Cliniv:
+**Cliniv → paciente aberto → Avaliação Antropométrica**
+
+A equipe do Cliniv pode reutilizar a lógica e os componentes, substituindo Firebase e GitHub Pages pelos serviços internos da plataforma.
+
+Documentação de entrega específica:
+`../handoff-cliniv/`
+
+## Segurança
+
+A configuração Firebase Web não é uma credencial administrativa. O acesso aos dados depende de autenticação e regras do Firestore.
+
+Ainda assim, para uma incorporação nativa no Cliniv, não reutilizar o Firebase desta demonstração como backend do produto final. Usar a infraestrutura e governança do próprio Cliniv.
+
+## Identidade
+
 Responsável: Thales Chateaubriand — CRM 25254.
 
-## Prévia
-Após publicação pelo GitHub Pages:
+## Aplicação de referência
+
 https://drthaleschateaubriand.github.io/bioevolucao-app/professional/
