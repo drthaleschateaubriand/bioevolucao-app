@@ -1,17 +1,22 @@
 import { CONFIG } from "../config.js";
 import { PreviewStore } from "./store.js";
 import { parseNumber, bmi, compositionFromFatPercent, jacksonPollock7, ageFromBirthDate, formatNumber } from "./calculations.js";
+import { FirebaseClient } from "../../shared/firebase-client.js";
+import { firebaseConfigured } from "../../shared/platform-config.js";
 
 const store = new PreviewStore();
 const app = document.querySelector("#app");
-const state = { auth:false, patientId:null, tab:"resumo", patientMode:false, selected:new Set(), selectionInitialized:false, chartMode:"grouped" };
+const state = { auth:false, patientId:null, tab:"resumo", patientMode:false, selected:new Set(), selectionInitialized:false, chartMode:"grouped", user:null, membership:null, authReady:false };
 
 function esc(s){ return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]}); }
 function datePt(s){ if(!s)return "—"; var a=s.split("-"); return a.length===3?a[2]+"/"+a[1]+"/"+a[0]:s; }
 function ordered(p){ return (p.assessments||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date)}); }
 function last(p){ var x=ordered(p); return x[x.length-1]||null; }
 function kpi(label,value,unit){ return '<div class="kpi"><span>'+label+'</span><b>'+value+(unit?' <small style="font-size:12px">'+unit+'</small>':'')+'</b></div>'; }
-function header(){ return '<div class="topbar no-print"><div class="brand"><div class="logo">AA</div><div><h1>'+CONFIG.appName+'</h1><p>Composição corporal, bioimpedância e adipometria</p></div></div><button class="btn" data-action="logout">Sair</button></div>'; }
+function header(){
+  var adminAllowed=!firebaseConfigured() || ["owner","admin"].includes(state.membership&&state.membership.globalRole);
+  return '<div class="topbar no-print"><div class="brand"><div class="logo">AA</div><div><h1>'+CONFIG.appName+'</h1><p>Composição corporal, bioimpedância e adipometria</p></div></div><div class="actions">'+(adminAllowed?'<a class="btn" href="'+CONFIG.platform.ownerPortalPath+'">Administração</a>':'')+'<button class="btn" data-action="logout">Sair</button></div></div>';
+}
 
 function render(){
   if(!state.auth){ renderLogin(); return; }
@@ -20,8 +25,46 @@ function render(){
 }
 
 function renderLogin(){
-  app.innerHTML='<main class="shell"><section class="card login"><div class="brand" style="margin-bottom:20px"><div class="logo">AA</div><div><h1 style="font-size:30px">'+CONFIG.appName+'</h1><p>Versão profissional em desenvolvimento</p></div></div><form id="loginForm" class="grid" style="grid-template-columns:1fr"><div class="field"><label>E-mail</label><input type="email" required placeholder="seu@email.com"></div><div class="field"><label>Senha</label><input type="password" required placeholder="••••••••"></div><button class="btn primary">Entrar</button><button class="btn" type="button" data-action="forgot">Recuperar senha</button></form><p class="notice" style="margin-top:16px">Prévia técnica. O login real, recuperação de senha e sincronização em nuvem serão conectados ao backend antes do uso com dados identificáveis.</p></section></main>';
-  document.querySelector("#loginForm").addEventListener("submit",function(e){e.preventDefault();state.auth=true;render()});
+  var invite=new URLSearchParams(location.search).get("invite");
+  var real=firebaseConfigured();
+  app.innerHTML='<main class="shell"><section class="card login"><div class="brand" style="margin-bottom:20px"><div class="logo">AA</div><div><h1 style="font-size:30px">'+CONFIG.appName+'</h1><p>'+(real?"Acesso seguro":"Versão profissional em demonstração")+'</p></div></div>'+
+  (invite&&real?'<div class="notice" style="margin-bottom:14px"><strong>Convite recebido.</strong> Use o mesmo e-mail que foi autorizado. Se esta for sua primeira entrada, escolha uma senha e clique em “Criar conta e ativar convite”.</div>':'')+
+  '<form id="loginForm" class="grid" style="grid-template-columns:1fr"><div class="field"><label>E-mail</label><input id="loginEmail" type="email" required placeholder="seu@email.com"></div><div class="field"><label>Senha</label><input id="loginPassword" type="password" required minlength="6" placeholder="••••••••"></div>'+(invite&&real?'<div class="field"><label>Nome</label><input id="loginName" placeholder="Nome completo"></div>':'')+'<button class="btn primary">Entrar</button>'+(invite&&real?'<button class="btn soft" id="inviteSignup" type="button">Criar conta e ativar convite</button>':'')+'<button class="btn" type="button" data-action="forgot">Recuperar senha</button><div id="loginStatus" class="small muted"></div></form>'+
+  '<p class="notice" style="margin-top:16px">'+(real?'Somente usuários autorizados podem acessar dados. Cada profissional usa seu próprio login.':'Modo de demonstração local. O Firebase ainda não foi conectado a este ambiente.')+'</p></section></main>';
+
+  document.querySelector("#loginForm").addEventListener("submit",async function(e){
+    e.preventDefault();
+    var status=document.querySelector("#loginStatus");
+    if(!real){state.auth=true;state.membership={globalRole:"owner",status:"active"};render();return;}
+    status.textContent="Entrando...";
+    try{await FirebaseClient.signIn(document.querySelector("#loginEmail").value.trim(),document.querySelector("#loginPassword").value)}
+    catch(err){status.textContent=humanAuthError(err)}
+  });
+
+  var signup=document.querySelector("#inviteSignup");
+  if(signup)signup.addEventListener("click",async function(){
+    var status=document.querySelector("#loginStatus");
+    status.textContent="Criando acesso...";
+    try{
+      await FirebaseClient.signUp(document.querySelector("#loginEmail").value.trim(),document.querySelector("#loginPassword").value,document.querySelector("#loginName").value.trim());
+      await FirebaseClient.activateInvite(invite);
+      status.textContent="Convite ativado.";
+    }catch(err){status.textContent=humanAuthError(err)}
+  });
+}
+
+function humanAuthError(err){
+  var code=err&&err.code?err.code:"";
+  if(code.includes("invalid-credential")||code.includes("wrong-password"))return "E-mail ou senha inválidos.";
+  if(code.includes("user-not-found"))return "Usuário não encontrado.";
+  if(code.includes("email-already-in-use"))return "Este e-mail já possui uma conta. Use Entrar.";
+  if(code.includes("weak-password"))return "Escolha uma senha mais forte.";
+  if(code.includes("too-many-requests"))return "Muitas tentativas. Aguarde e tente novamente.";
+  return (err&&err.message)||"Não foi possível concluir o acesso.";
+}
+
+function renderUnauthorized(){
+  app.innerHTML='<main class="shell"><section class="card login"><h2 class="section-title">Acesso não autorizado</h2><p class="muted">Sua conta está autenticada, mas não possui autorização ativa para este aplicativo.</p><div class="actions"><button class="btn" data-action="logout">Sair</button></div></section></main>';
 }
 
 function renderSearch(q){
@@ -325,8 +368,15 @@ function bind(){
 
 document.addEventListener("click",async function(e){
   var el=e.target.closest("[data-action]"); if(!el)return; var a=el.dataset.action;
-  if(a==="logout"){state.auth=false;state.patientId=null;render();}
-  if(a==="forgot")alert("Recuperação por e-mail será ativada no backend.");
+  if(a==="logout"){if(firebaseConfigured())await FirebaseClient.signOut();else{state.auth=false;state.patientId=null;state.membership=null;render();}}
+  if(a==="forgot"){
+    if(!firebaseConfigured()){alert("O Firebase ainda não está configurado.");}
+    else{
+      var field=document.querySelector("#loginEmail"),email=field?field.value.trim():"";
+      if(!email){alert("Digite seu e-mail primeiro.");}
+      else try{await FirebaseClient.resetPassword(email);alert("E-mail de recuperação enviado.");}catch(err){alert(humanAuthError(err));}
+    }
+  }
   if(a==="back-search"){state.patientId=null;renderSearch("");}
   if(a==="patient-mode"){state.patientMode=!state.patientMode;render();}
   if(a==="new-patient"){document.querySelector("#newPatientArea").innerHTML=newPatientHtml();bindNewPatient();}
@@ -343,4 +393,33 @@ function bindNewPatient(){
   form.addEventListener("submit",function(e){e.preventDefault();var p=store.createPatient({fullName:document.querySelector("#npName").value.trim(),birthDate:document.querySelector("#npBirth").value,sex:document.querySelector("#npSex").value,email:document.querySelector("#npEmail").value.trim(),phone:document.querySelector("#npPhone").value.trim(),heightCm:parseNumber(document.querySelector("#npHeight").value)});state.patientId=p.id;state.tab="resumo";render();});
 }
 
-render();
+async function bootstrapAuth(){
+  if(!firebaseConfigured()){
+    state.authReady=true;
+    render();
+    return;
+  }
+  await FirebaseClient.onAuthChanged(async function(user){
+    state.user=user;
+    state.patientId=null;
+    if(!user){
+      state.auth=false;
+      state.membership=null;
+      state.authReady=true;
+      render();
+      return;
+    }
+    var membership=await FirebaseClient.getMembership(user.uid);
+    var invite=new URLSearchParams(location.search).get("invite");
+    if(!membership&&invite){
+      try{membership=await FirebaseClient.activateInvite(invite)}catch{}
+    }
+    state.membership=membership;
+    state.auth=Boolean(membership&&membership.status==="active"&&(membership.globalRole==="owner"||membership.globalRole==="admin"||membership.appRoles&&membership.appRoles.anthropometry));
+    state.authReady=true;
+    if(state.auth)render();
+    else renderUnauthorized();
+  });
+}
+
+bootstrapAuth();
