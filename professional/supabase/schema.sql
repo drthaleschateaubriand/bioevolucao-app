@@ -72,6 +72,8 @@ create table if not exists public.skinfolds (
   abdomen_mm numeric(6,2),
   suprailiac_mm numeric(6,2),
   thigh_mm numeric(6,2),
+  biceps_mm numeric(6,2),
+  medial_calf_mm numeric(6,2),
   sum_mm numeric(7,2),
   density numeric(8,5),
   body_fat_pct numeric(6,2)
@@ -81,7 +83,11 @@ create table if not exists public.anthropometry (
   assessment_id uuid primary key references public.assessments(id) on delete cascade,
   waist_cm numeric(7,2),
   hip_cm numeric(7,2),
-  calf_cm numeric(7,2)
+  calf_cm numeric(7,2),
+  arm_cm numeric(7,2),
+  neck_cm numeric(7,2),
+  abdomen_cm numeric(7,2),
+  thigh_cm numeric(7,2)
 );
 
 create table if not exists public.reports (
