@@ -1,35 +1,35 @@
-# Especificação Mestre — Avaliação Antropométrica v1.0
+# Especificação Mestre — Avaliação Antropométrica
 
-## 1. Objetivo
-Módulo clínico para registro e acompanhamento longitudinal de composição corporal, bioimpedância, adipometria e perímetros, inicialmente independente e posteriormente incorporável ao Cliniv.
+## Objetivo
+Módulo clínico para registro e acompanhamento longitudinal de composição corporal, bioimpedância, adipometria e perímetros, utilizável de forma independente e incorporável ao Cliniv.
 
-## 2. Fluxo principal
-1. Login por e-mail e senha.
-2. Busca do paciente pelo nome completo.
-3. Resumo da última avaliação.
-4. Nova avaliação na mesma página, organizada em três blocos: Bioimpedância, Adipômetro e Antropometria.
-5. Finalizar avaliação.
-6. Visualizar evolução completa ou selecionar datas específicas.
-7. Mostrar resultados ao paciente em modo de apresentação.
-8. Copiar texto detalhado para o prontuário.
-9. Gerar, imprimir, baixar ou enviar relatório por e-mail.
+## Fluxo principal
+1. autenticação;
+2. busca ou recebimento do contexto do paciente;
+3. resumo da última avaliação;
+4. nova avaliação em Bioimpedância, Adipômetro e Antropometria;
+5. salvar avaliação;
+6. visualizar evolução e selecionar datas;
+7. mostrar resultados ao paciente;
+8. copiar texto objetivo para prontuário;
+9. imprimir/gerar relatório.
 
-## 3. Cadastro do paciente
-Campos:
+## Paciente
 - nome completo;
 - data de nascimento;
-- idade calculada automaticamente;
+- idade calculada;
 - sexo;
 - e-mail;
 - telefone;
-- altura em centímetros.
+- altura.
 
-A altura é reaproveitada em avaliações posteriores e pode ser atualizada.
+Na integração Cliniv, o paciente deve preferencialmente vir do prontuário já aberto.
 
-## 4. Bioimpedância
+## Bioimpedância
 Entrada:
 - manual;
-- múltiplas fotografias.
+- múltiplas fotos;
+- múltiplos PDFs.
 
 Campos:
 - peso;
@@ -43,15 +43,17 @@ Campos:
 - metabolismo basal.
 
 Automação:
-- peso + altura calculam IMC;
-- peso + percentual de gordura calculam massa gorda e massa livre de gordura.
+- peso + altura → IMC;
+- peso + percentual de gordura → massa gorda e massa livre de gordura.
 
-Fluxo OCR:
-múltiplas imagens → extração → consolidação → conferência humana → correção → salvar.
-As imagens originais não precisam ser preservadas após a confirmação.
+OCR:
+arquivo → extração/OCR → consolidação → conferência humana → correção → aplicar.
 
-## 5. Adipômetro
-Protocolo único inicial: Jackson-Pollock 7 dobras.
+PDF textual é lido diretamente. PDF escaneado é renderizado e enviado ao OCR. Os arquivos não precisam ser persistidos após a conferência.
+
+## Adipômetro
+Protocolo: Jackson-Pollock 7 dobras.
+
 Dobras:
 - peitoral;
 - axilar média;
@@ -68,95 +70,91 @@ Resultados:
 - massa gorda quando houver peso;
 - massa livre de gordura quando houver peso.
 
-Bioimpedância e adipometria permanecem metodologias distintas nos históricos e gráficos.
+Pregas adicionais opcionais:
+- bíceps;
+- panturrilha medial.
 
-## 6. Antropometria
-Campos principais:
+Essas duas não entram no Jackson-Pollock 7.
+
+Bioimpedância e adipometria são metodologias distintas e permanecem separadas no histórico e nos gráficos.
+
+## Antropometria
 - cintura;
 - quadril;
-- panturrilha.
-
-Campos opcionais ampliados:
-- braço / circunferência do braço;
+- panturrilha;
+- braço/CB;
 - pescoço;
 - abdome;
 - coxa.
 
-Pregas adicionais opcionais para registro longitudinal, sem alterar o cálculo Jackson-Pollock 7:
-- bíceps;
-- panturrilha medial.
+Campos vazios são omitidos do relatório.
 
-Campos vazios não aparecem no relatório.
-
-## 7. Histórico, evolução e gráficos
+## Evolução
 - todas as datas selecionadas por padrão;
-- possibilidade de desmarcar datas;
-- histórico de bioimpedância separado do adipômetro;
-- antropometria longitudinal;
-- gráficos em barras para composição corporal;
-- barras separadas para bioimpedância e adipômetro;
-- tendências de circunferências quando houver dados suficientes;
-- comparação futura de duas datas lado a lado;
-- nenhuma interpretação diagnóstica automática.
+- datas podem ser desmarcadas;
+- gráfico da bioimpedância;
+- gráfico do adipômetro;
+- tabelas longitudinais;
+- tabela comparativa de pregas e circunferências.
 
-## 8. Modo paciente
-Exibe resultados e evolução em tela limpa, sem campos administrativos ou de edição.
-Objetivo: permitir apresentação conjunta durante a consulta.
+No adipômetro, o gráfico de composição usa peso + percentual de gordura do Jackson-Pollock para estimar massa gorda e massa livre de gordura.
 
-## 9. Relatório
+Não inferir massa muscular a partir da massa livre de gordura.
+
+## Relatório
 Título: Avaliação Antropométrica.
-Identificação:
-- paciente;
-- data de nascimento / idade;
-- data da avaliação;
-- profissional: Thales Chateaubriand;
-- CRM 25254;
-- logo e identificação da clínica configuráveis.
 
-Saídas:
-- impressão de relatório completo;
-- PDF completo pelo diálogo de impressão;
-- download;
-- envio por e-mail;
-- copiar texto detalhado para prontuário.
+Inclui:
+- identificação do paciente;
+- profissional;
+- gráficos;
+- bioimpedância;
+- composição pelo adipômetro;
+- tabela comparativa de medidas aferidas;
+- circunferências.
 
-O relatório completo contém identificação, gráficos, tabelas de bioimpedância, adipometria, pregas e circunferências, além do texto de evolução. Somente campos registrados são exibidos.
+O somatório das 7 dobras aparece na tabela comparativa de medidas.
 
-## 10. Texto para prontuário
-Texto detalhado, objetivo e sem diagnóstico ou conduta.
-Deve incluir resultados atuais e, quando aplicável, evolução entre datas selecionadas.
+O relatório visual não contém bloco redundante final chamado “Evolução registrada”.
 
-## 11. Usuários e permissões
-Perfis previstos:
-- Administrador/Médico;
+## Texto para prontuário
+Existe separadamente do relatório visual.
+
+Deve ser objetivo, factual e sem diagnóstico/conduta automáticos. Pode resumir avaliação atual e diferenças entre datas selecionadas.
+
+## Usuários e permissões
+- OWNER;
+- Administrador;
+- Médico;
 - Nutricionista;
 - Assistente.
 
-Exemplo:
-Assistente pode cadastrar paciente e editar dados administrativos, mas não deve editar avaliações clínicas sem permissão.
+Assistente pode trabalhar com dados administrativos permitidos, mas não alterar avaliação clínica sem permissão clínica.
 
-## 12. Auditoria
-Registrar:
+## Auditoria
+A integração definitiva deve permitir rastrear:
 - usuário;
 - ação;
 - horário;
 - entidade;
-- valores anteriores e posteriores em alterações relevantes.
+- mudanças relevantes.
 
-Relatórios emitidos devem poder ser rastreados por versão.
-
-## 13. Segurança
-Antes de produção:
-- TLS;
-- autenticação real;
-- RLS;
+## Segurança
+- autenticação;
+- autorização no backend;
 - segregação por organização;
-- logs de acesso;
-- política de retenção;
+- logs;
 - backups;
+- retenção;
 - revisão LGPD;
-- nenhum segredo no frontend público.
+- nenhum segredo administrativo no frontend.
 
-## 14. Integração com Cliniv
-Objetivo preferencial: módulo embutido dentro do Cliniv, com SSO e contexto automático do paciente.
-O sistema independente continua existindo como fallback e ambiente de evolução do produto.
+## Cliniv
+Modelo preferencial:
+**Cliniv → paciente aberto → módulo nativo**
+
+O usuário não deve precisar autenticar novamente ou pesquisar o mesmo paciente.
+
+Ver:
+- `INTEGRACAO_CLINIV.md`
+- `../../handoff-cliniv/`
