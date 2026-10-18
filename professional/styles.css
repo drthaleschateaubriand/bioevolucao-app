@@ -160,3 +160,13 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 .btn:hover{border-color:#b8c3cc;background:#f8fafb}
 .btn.primary:hover{background:#07989a;border-color:#07989a}
 .patient-row:hover{border-color:#a9d9d8;background:#fbfefe}
+
+.ocr-toolbar{display:grid;grid-template-columns:auto minmax(120px,1fr) minmax(180px,auto);gap:12px;align-items:center;margin-top:12px}
+.ocr-progress{height:8px;background:#edf1f3;border-radius:999px;overflow:hidden}
+.ocr-progress-bar{height:100%;width:0;background:var(--pine);transition:width .2s ease}
+.ocr-review{margin-top:16px;border:1px solid #cfe5e4;background:#fbfefe;border-radius:7px;padding:16px}
+.ocr-review h4{margin:0;font-size:16px}
+.ocr-raw{white-space:pre-wrap;max-height:260px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;font-size:11px;line-height:1.45;color:#53606b}
+@media(max-width:720px){
+  .ocr-toolbar{grid-template-columns:1fr}
+}
