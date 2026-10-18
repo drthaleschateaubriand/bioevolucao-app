@@ -152,10 +152,10 @@ function newAssessment(p){
   '<section class="card eval-block"><div class="eval-head"><div><h3 class="section-title">Nova avaliação</h3><p class="muted">Preencha apenas o que foi medido.</p></div><div class="field"><label>Data</label><input id="assessmentDate" type="date" value="'+today+'" required></div></div></section>'+
   '<section class="card eval-block"><h3>Bioimpedância</h3><div class="grid">'+
   '<div class="field"><label>Peso (kg)</label><input id="bioWeight"></div><div class="field"><label>Altura (cm)</label><input id="bioHeight" value="'+(p.heightCm||"")+'"></div><div class="field"><label>IMC</label><input id="bioBmi" readonly></div><div class="field"><label>Gordura corporal (%)</label><input id="bioFatPct"></div><div class="field"><label>Massa gorda (kg)</label><input id="bioFatMass"></div><div class="field"><label>Massa muscular (kg)</label><input id="bioMuscle"></div><div class="field"><label>Massa livre de gordura (kg)</label><input id="bioLean"></div><div class="field"><label>Gordura visceral</label><input id="bioVisceral"></div><div class="field"><label>Metabolismo basal (kcal)</label><input id="bioBmr"></div></div>'+
-  '<div class="hr"></div><div class="field"><label>Fotos da bioimpedância</label><input id="bioPhotos" type="file" accept="image/*" multiple><div id="photoQueue" class="small muted">Nenhuma imagem selecionada.</div></div>'+
-  '<div class="ocr-toolbar"><button class="btn soft" id="ocrStart" type="button" disabled>Ler fotos</button><div class="ocr-progress"><div class="ocr-progress-bar" id="ocrProgressBar"></div></div><span id="ocrStatus" class="small muted">Selecione uma ou mais imagens.</span></div>'+
+  '<div class="hr"></div><div class="field"><label>Fotos ou PDFs da bioimpedância</label><input id="bioPhotos" type="file" accept="image/*,application/pdf,.pdf" multiple><div id="photoQueue" class="small muted">Nenhum arquivo selecionado.</div></div>'+
+  '<div class="ocr-toolbar"><button class="btn soft" id="ocrStart" type="button" disabled>Ler arquivos</button><div class="ocr-progress"><div class="ocr-progress-bar" id="ocrProgressBar"></div></div><span id="ocrStatus" class="small muted">Selecione fotos e/ou PDFs.</span></div>'+
   '<div id="ocrReview" class="ocr-review hidden"><div class="eval-head"><div><h4>Conferir dados reconhecidos</h4><p class="small muted">Revise e corrija antes de aplicar ao formulário.</p></div><button class="btn primary" id="ocrApply" type="button">Aplicar ao formulário</button></div><div class="grid" id="ocrReviewGrid"></div><details class="optional-block"><summary>Ver texto reconhecido</summary><pre id="ocrRawText" class="ocr-raw"></pre></details></div>'+
-  '<p class="notice">As imagens são processadas no navegador e não são armazenadas após a conferência. O OCR é assistivo e exige revisão humana antes do salvamento.</p></section>'+
+  '<p class="notice">Fotos e PDFs são processados no navegador e não são armazenados após a conferência. PDFs são lidos página por página; quando houver texto digital, ele é extraído diretamente e, quando necessário, a página passa por OCR. Revise sempre os números antes de salvar.</p></section>'+
   '<section class="card eval-block"><h3>Adipômetro · Jackson-Pollock 7 dobras</h3><div class="grid">'+
   '<div class="field"><label>Peitoral (mm)</label><input class="fold" data-fold="chest"></div><div class="field"><label>Axilar média (mm)</label><input class="fold" data-fold="axillary"></div><div class="field"><label>Tríceps (mm)</label><input class="fold" data-fold="triceps"></div><div class="field"><label>Subescapular (mm)</label><input class="fold" data-fold="subscapular"></div><div class="field"><label>Abdominal (mm)</label><input class="fold" data-fold="abdomen"></div><div class="field"><label>Supra-ilíaca (mm)</label><input class="fold" data-fold="suprailiac"></div><div class="field"><label>Coxa (mm)</label><input class="fold" data-fold="thigh"></div></div>'+
   '<div class="kpis" id="skinResults">'+kpi("Somatório","—","mm")+kpi("Densidade","—","kg/L")+kpi("Gordura","—","%")+'</div>'+
@@ -280,6 +280,43 @@ function normalizeOcrText(text){
   return String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
 }
 
+
+let pdfJsPromise=null;
+async function getPdfJs(){
+  if(!pdfJsPromise){
+    pdfJsPromise=import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs").then(function(pdfjs){
+      pdfjs.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+      return pdfjs;
+    });
+  }
+  return pdfJsPromise;
+}
+
+function isPdfFile(file){
+  return Boolean(file&&(file.type==="application/pdf"||/\.pdf$/i.test(file.name||"")));
+}
+
+async function pdfPageText(page){
+  try{
+    var content=await page.getTextContent();
+    return (content.items||[]).map(function(item){return item&&item.str?item.str:""}).filter(Boolean).join("\n");
+  }catch(err){
+    return "";
+  }
+}
+
+async function renderPdfPage(page){
+  var base=page.getViewport({scale:1});
+  var scale=Math.min(2.2,Math.max(1.4,1800/Math.max(1,base.width)));
+  var viewport=page.getViewport({scale:scale});
+  var canvas=document.createElement("canvas");
+  var ctx=canvas.getContext("2d",{willReadFrequently:true});
+  canvas.width=Math.ceil(viewport.width);
+  canvas.height=Math.ceil(viewport.height);
+  await page.render({canvasContext:ctx,viewport:viewport}).promise;
+  return canvas;
+}
+
 function ocrNum(s){
   if(s==null)return null;
   var clean=String(s).replace(/[^\d,.\-]/g,"").replace(/\.(?=\d{3}(?:\D|$))/g,"").replace(",",".");
@@ -305,6 +342,18 @@ function findOcrMetric(text, aliases, min, max, excludes){
         var nv=ocrNum(nextNums[k]);
         if(nv!=null&&(min==null||nv>=min)&&(max==null||nv<=max))return nv;
       }
+    }
+  }
+  var full=normalizeOcrText(text).toLowerCase();
+  for(var a=0;a<aliases.length;a++){
+    var idx=full.indexOf(aliases[a]);
+    if(idx<0)continue;
+    var nearby=full.slice(idx,idx+160);
+    if(excludes&&excludes.some(function(x){return nearby.indexOf(x)>=0}))continue;
+    var nearNums=nearby.match(/-?\d{1,4}(?:[.,]\d{1,3})?/g)||[];
+    for(var n=0;n<nearNums.length;n++){
+      var fv=ocrNum(nearNums[n]);
+      if(fv!=null&&(min==null||fv>=min)&&(max==null||fv<=max))return fv;
     }
   }
   return null;
@@ -356,10 +405,13 @@ function bindAssessment(p){
   document.querySelectorAll(".fold").forEach(function(x){x.addEventListener("input",function(){var vals=[].slice.call(document.querySelectorAll(".fold")).map(function(y){return parseNumber(y.value)});if(vals.some(function(v){return v==null}))return;var o=jacksonPollock7({sex:p.sex,age:ageFromBirthDate(p.birthDate),folds:vals});if(o)document.querySelector("#skinResults").innerHTML=kpi("Somatório",formatNumber(o.sum,0),"mm")+kpi("Densidade",formatNumber(o.density,4),"kg/L")+kpi("Gordura",formatNumber(o.fatPct),"%");})});
   var photoInput=document.querySelector("#bioPhotos"),ocrStart=document.querySelector("#ocrStart"),ocrStatus=document.querySelector("#ocrStatus"),ocrBar=document.querySelector("#ocrProgressBar");
   photoInput.addEventListener("change",function(e){
-    var n=e.target.files.length;
-    document.querySelector("#photoQueue").textContent=n?n+" imagem(ns) selecionada(s).":"Nenhuma imagem selecionada.";
+    var files=[].slice.call(e.target.files||[]);
+    var n=files.length;
+    var pdfs=files.filter(isPdfFile).length;
+    var images=n-pdfs;
+    document.querySelector("#photoQueue").textContent=n?(n+" arquivo(s) selecionado(s) · "+images+" foto(s) · "+pdfs+" PDF(s)"):"Nenhum arquivo selecionado.";
     ocrStart.disabled=!n;
-    ocrStatus.textContent=n?"Pronto para reconhecer.":"Selecione uma ou mais imagens.";
+    ocrStatus.textContent=n?"Pronto para reconhecer.":"Selecione fotos e/ou PDFs.";
     ocrBar.style.width="0%";
     document.querySelector("#ocrReview").classList.add("hidden");
   });
@@ -371,17 +423,50 @@ function bindAssessment(p){
     var parsed=[],raw=[];
     try{
       for(var i=0;i<files.length;i++){
-        var base=(i/files.length)*100;
-        ocrStatus.textContent="Lendo "+(i+1)+" de "+files.length+": "+files[i].name;
-        var result=await window.Tesseract.recognize(files[i],"por+eng",{logger:function(m){
-          if(m.status==="recognizing text"&&m.progress!=null){
-            var pct=base+(m.progress*100/files.length);
-            ocrBar.style.width=Math.min(100,pct).toFixed(0)+"%";
+        var file=files[i];
+        var fileBase=(i/files.length)*100;
+        if(isPdfFile(file)){
+          ocrStatus.textContent="Abrindo PDF "+(i+1)+" de "+files.length+": "+file.name;
+          var pdfjs=await getPdfJs();
+          var pdf=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+          for(var pageNum=1;pageNum<=pdf.numPages;pageNum++){
+            var page=await pdf.getPage(pageNum);
+            ocrStatus.textContent="Lendo "+file.name+" · página "+pageNum+" de "+pdf.numPages;
+            var directText=await pdfPageText(page);
+            var textResult="";
+            if(normalizeOcrText(directText).length>=40){
+              textResult=directText;
+              var directPct=fileBase+((pageNum/pdf.numPages)*100/files.length);
+              ocrBar.style.width=Math.min(100,directPct).toFixed(0)+"%";
+            }else{
+              var canvas=await renderPdfPage(page);
+              var currentPage=pageNum;
+              var totalPages=pdf.numPages;
+              var result=await window.Tesseract.recognize(canvas,"por+eng",{logger:function(m){
+                if(m.status==="recognizing text"&&m.progress!=null){
+                  var pageProgress=((currentPage-1)+m.progress)/totalPages;
+                  var pct=fileBase+(pageProgress*100/files.length);
+                  ocrBar.style.width=Math.min(100,pct).toFixed(0)+"%";
+                }
+              }});
+              textResult=result&&result.data?result.data.text:"";
+              canvas.width=1;canvas.height=1;
+            }
+            raw.push("=== "+file.name+" · página "+pageNum+" ===\n"+textResult);
+            parsed.push(parseBioOcr(textResult));
           }
-        }});
-        var textResult=result&&result.data?result.data.text:"";
-        raw.push("=== "+files[i].name+" ===\n"+textResult);
-        parsed.push(parseBioOcr(textResult));
+        }else{
+          ocrStatus.textContent="Lendo "+(i+1)+" de "+files.length+": "+file.name;
+          var result=await window.Tesseract.recognize(file,"por+eng",{logger:function(m){
+            if(m.status==="recognizing text"&&m.progress!=null){
+              var pct=fileBase+(m.progress*100/files.length);
+              ocrBar.style.width=Math.min(100,pct).toFixed(0)+"%";
+            }
+          }});
+          var textResult=result&&result.data?result.data.text:"";
+          raw.push("=== "+file.name+" ===\n"+textResult);
+          parsed.push(parseBioOcr(textResult));
+        }
       }
       var merged=mergeOcrResults(parsed);
       renderOcrReview(merged,raw.join("\n\n"));
@@ -389,7 +474,7 @@ function bindAssessment(p){
       ocrStatus.textContent="Leitura concluída. Revise os números antes de aplicar.";
     }catch(err){
       console.error(err);
-      ocrStatus.textContent="Não foi possível concluir o OCR. Você pode preencher manualmente.";
+      ocrStatus.textContent="Não foi possível concluir a leitura deste arquivo. Você pode tentar outro PDF/foto ou preencher manualmente.";
     }finally{
       ocrStart.disabled=false;
     }
