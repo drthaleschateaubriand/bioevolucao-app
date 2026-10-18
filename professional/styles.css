@@ -1,6 +1,7 @@
 :root{
   --pine:#1b5e45;--pine-dark:#124431;--sage:#dfeae4;--paper:#fff;--cream:#f6f2e9;
   --ink:#1f2a25;--muted:#6d7772;--line:#dfe5e1;--danger:#a13d3d;--shadow:0 14px 40px rgba(27,45,36,.08);
+  --chart-weight:#1d68ce;--chart-lean:#ed2000;--chart-fat:#ffc900;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--cream);color:var(--ink)}
@@ -73,8 +74,9 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 .bar-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .bar-legend span{display:inline-flex;align-items:center;gap:5px}
 .legend-dot{width:9px;height:9px;border-radius:3px;display:inline-block}
-.legend-dot.lean,.bar-seg.lean{background:#2f7f62}
-.legend-dot.fat,.bar-seg.fat{background:#d8b36a}
+.legend-dot.weight,.single-bar.weight{background:var(--chart-weight)}
+.legend-dot.lean,.bar-seg.lean,.single-bar.lean{background:var(--chart-lean)}
+.legend-dot.fat,.bar-seg.fat,.single-bar.fat{background:var(--chart-fat)}
 .bar-plot{display:flex;align-items:flex-end;gap:10px;min-height:238px;overflow-x:auto;padding:8px 2px 0}
 .bar-col{min-width:58px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .bar-value{font-size:11px;font-weight:800;margin-bottom:6px}
@@ -115,4 +117,27 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
   .report-page .bar-chart,.report-page .mini-trend{page-break-inside:avoid}
   .no-print{display:none!important}
   @page{size:A4 portrait;margin:12mm}
+}
+
+.chart-mode-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:#fafafa;border-radius:14px;padding:10px 12px;margin:14px 0}
+.grouped-chart{background:#fff}
+.grouped-plot{display:flex;align-items:flex-end;gap:18px;min-height:250px;overflow-x:auto;padding:10px 4px 0}
+.group-date{min-width:118px;flex:1;display:flex;flex-direction:column;align-items:center}
+.group-bars{height:205px;display:flex;align-items:flex-end;justify-content:center;gap:4px;width:100%}
+.single-bar{position:relative;width:30px;min-height:18px;border-radius:4px 4px 0 0}
+.single-bar span{position:absolute;left:50%;top:5px;transform:translateX(-50%);font-size:9px;font-weight:800;color:#fff;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.single-bar.fat span{color:#4b3d00;text-shadow:none}
+.grouped-chart .bar-date{font-size:10px;margin-top:8px}
+.grouped-chart .bar-caption{font-size:10px}
+@media(max-width:620px){
+  .chart-mode-switch{align-items:flex-start;flex-direction:column}
+  .grouped-plot{gap:10px}
+  .group-date{min-width:105px}
+  .single-bar{width:27px}
+}
+@media print{
+  .grouped-plot{overflow:visible!important;gap:10px!important}
+  .group-date{min-width:0!important}
+  .single-bar{width:24px!important}
+  .single-bar span{font-size:7px!important}
 }
