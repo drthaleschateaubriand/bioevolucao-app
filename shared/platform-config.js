@@ -2,12 +2,12 @@ export const PLATFORM_CONFIG = {
   platformName: "Portal do Proprietário",
   organizationId: "default",
   firebase: {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyCrSJnPW-nJHuj_zadQPQ5nVhf7EZvQfsA",
+    authDomain: "appparenteraleenteral.firebaseapp.com",
+    projectId: "appparenteraleenteral",
+    storageBucket: "appparenteraleenteral.firebasestorage.app",
+    messagingSenderId: "1080890601815",
+    appId: "1:1080890601815:web:220a3665b6c7d64b4cce12"
   },
   apps: [
     {
