@@ -71,18 +71,31 @@ Resultados:
 Bioimpedância e adipometria permanecem metodologias distintas nos históricos e gráficos.
 
 ## 6. Antropometria
-Campos iniciais:
+Campos principais:
 - cintura;
 - quadril;
 - panturrilha.
 
+Campos opcionais ampliados:
+- braço / circunferência do braço;
+- pescoço;
+- abdome;
+- coxa.
+
+Pregas adicionais opcionais para registro longitudinal, sem alterar o cálculo Jackson-Pollock 7:
+- bíceps;
+- panturrilha medial.
+
 Campos vazios não aparecem no relatório.
 
-## 7. Histórico e evolução
+## 7. Histórico, evolução e gráficos
 - todas as datas selecionadas por padrão;
 - possibilidade de desmarcar datas;
 - histórico de bioimpedância separado do adipômetro;
 - antropometria longitudinal;
+- gráficos em barras para composição corporal;
+- barras separadas para bioimpedância e adipômetro;
+- tendências de circunferências quando houver dados suficientes;
 - comparação futura de duas datas lado a lado;
 - nenhuma interpretação diagnóstica automática.
 
@@ -101,13 +114,13 @@ Identificação:
 - logo e identificação da clínica configuráveis.
 
 Saídas:
-- impressão;
-- PDF;
+- impressão de relatório completo;
+- PDF completo pelo diálogo de impressão;
 - download;
 - envio por e-mail;
-- copiar texto para prontuário.
+- copiar texto detalhado para prontuário.
 
-Somente campos registrados são exibidos.
+O relatório completo contém identificação, gráficos, tabelas de bioimpedância, adipometria, pregas e circunferências, além do texto de evolução. Somente campos registrados são exibidos.
 
 ## 10. Texto para prontuário
 Texto detalhado, objetivo e sem diagnóstico ou conduta.
