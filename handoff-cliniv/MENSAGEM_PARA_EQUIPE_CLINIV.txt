@@ -1,0 +1,42 @@
+Olá, equipe Cliniv.
+
+Estou enviando o módulo de Avaliação Antropométrica que desenvolvi e validei como aplicação independente.
+
+Minha preferência é que ele seja incorporado ao Cliniv como módulo nativo, mantendo a interface, fluxo, cálculos, gráficos e relatório atuais, mas usando autenticação, banco de dados, permissões e contexto de paciente do próprio Cliniv.
+
+O código atual serve como implementação de referência. Não é necessário utilizar meu Firebase ou meu GitHub Pages como infraestrutura final.
+
+Repositório:
+https://github.com/drthaleschateaubriand/bioevolucao-app
+
+Aplicação de referência:
+https://drthaleschateaubriand.github.io/bioevolucao-app/professional/
+
+Dentro do pacote, a pasta handoff-cliniv contém:
+- arquitetura e mapeamento;
+- checklist de integração;
+- regras de cálculo;
+- critérios de aceite;
+- autorização de uso.
+
+A pasta professional contém a aplicação clínica atual. A lógica de cálculo está em professional/js/calculations.js.
+
+O fluxo ideal para mim é:
+Cliniv > paciente já aberto > Avaliação Antropométrica, sem novo login e sem precisar procurar o paciente novamente.
+
+Peço que o resultado da integração preserve principalmente:
+1. bioimpedância;
+2. OCR de fotos e PDFs com conferência;
+3. Jackson-Pollock 7 dobras;
+4. antropometria;
+5. evolução por datas;
+6. tabelas comparativas;
+7. relatório/PDF;
+8. texto para prontuário;
+9. permissões por perfil.
+
+Podem adaptar a tecnologia interna conforme o padrão do Cliniv.
+
+Obrigado.
+Thales Chateaubriand
+CRM 25254
