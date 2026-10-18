@@ -1,0 +1,97 @@
+name: Build Cliniv handoff package
+
+on:
+  push:
+    paths:
+      - ".github/workflows/build-cliniv-package.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Montar pacote sanitizado
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG="avaliacao-antropometrica-cliniv"
+          mkdir -p "$PKG"
+          cp -R professional "$PKG/"
+          cp -R shared "$PKG/"
+          cp -R firebase "$PKG/"
+          cp -R owner "$PKG/"
+          cp -R handoff-cliniv "$PKG/"
+
+          # Remover legado que não faz parte da integração atual.
+          rm -rf "$PKG/professional/supabase" || true
+
+          # Nunca entregar a configuração do Firebase real no pacote.
+          cat > "$PKG/shared/platform-config.js" <<'EOF'
+          export const PLATFORM_CONFIG = {
+            platformName: "Portal do Proprietário",
+            organizationId: "default",
+            firebase: {
+              apiKey: "SUBSTITUIR_NO_AMBIENTE_DESTINO",
+              authDomain: "SUBSTITUIR_NO_AMBIENTE_DESTINO",
+              projectId: "SUBSTITUIR_NO_AMBIENTE_DESTINO",
+              storageBucket: "SUBSTITUIR_NO_AMBIENTE_DESTINO",
+              messagingSenderId: "SUBSTITUIR_NO_AMBIENTE_DESTINO",
+              appId: "SUBSTITUIR_NO_AMBIENTE_DESTINO"
+            },
+            apps: [
+              {
+                id: "anthropometry",
+                name: "Avaliação Antropométrica",
+                path: "../professional/",
+                description: "Composição corporal, bioimpedância e adipometria."
+              }
+            ]
+          };
+
+          export function firebaseConfigured() {
+            const f = PLATFORM_CONFIG.firebase;
+            return Boolean(
+              f.apiKey &&
+              f.authDomain &&
+              f.projectId &&
+              f.appId &&
+              !String(f.apiKey).startsWith("SUBSTITUIR")
+            );
+          }
+          EOF
+
+          cat > "$PKG/LEIA-ME-PRIMEIRO.txt" <<'EOF'
+          PACOTE DE ENTREGA AO CLINIV
+          ==========================
+
+          Comece por:
+          1. handoff-cliniv/README.md
+          2. handoff-cliniv/ARQUITETURA_E_MAPEAMENTO.md
+          3. handoff-cliniv/CHECKLIST_DE_INTEGRACAO.md
+          4. handoff-cliniv/TESTES_E_CRITERIOS_DE_ACEITE.md
+          5. handoff-cliniv/AUTORIZACAO_DE_USO.md
+
+          A aplicação clínica está em professional/.
+          As fórmulas estão em professional/js/calculations.js.
+
+          IMPORTANTE:
+          - Este ZIP foi sanitizado.
+          - A configuração do Firebase real não está incluída.
+          - Não usar o Firebase atual como backend de produção do Cliniv.
+          - O Cliniv deve usar sua própria autenticação, banco, permissões e infraestrutura.
+          EOF
+
+          zip -r "avaliacao-antropometrica-cliniv.zip" "$PKG" >/dev/null
+
+      - name: Publicar pacote como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: avaliacao-antropometrica-cliniv
+          path: avaliacao-antropometrica-cliniv.zip
+          if-no-files-found: error
+          retention-days: 30
