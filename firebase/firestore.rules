@@ -1,0 +1,252 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasMembership() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/memberships/$(request.auth.uid));
+    }
+
+    function me() {
+      return get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data;
+    }
+
+    function active() {
+      return hasMembership() && me().status == "active";
+    }
+
+    function sameOrg(orgId) {
+      return active() && me().organizationId == orgId;
+    }
+
+    function isOwner() {
+      return active() && me().globalRole == "owner";
+    }
+
+    function isAdmin() {
+      return active() &&
+        (me().globalRole == "owner" || me().globalRole == "admin");
+    }
+
+    function hasAnthropometryRole() {
+      return active() && (
+        me().globalRole == "owner" ||
+        me().globalRole == "admin" ||
+        (
+          me().appRoles.keys().hasAny(["anthropometry"]) &&
+          me().appRoles.anthropometry in [
+            "owner",
+            "admin",
+            "physician",
+            "nutritionist",
+            "assistant"
+          ]
+        )
+      );
+    }
+
+    function canEditClinical() {
+      return active() && (
+        me().globalRole == "owner" ||
+        me().globalRole == "admin" ||
+        (
+          me().appRoles.keys().hasAny(["anthropometry"]) &&
+          me().appRoles.anthropometry in [
+            "owner",
+            "admin",
+            "physician",
+            "nutritionist"
+          ]
+        )
+      );
+    }
+
+    function canRegisterPatient() {
+      return hasAnthropometryRole();
+    }
+
+    function patientOrg(patientId) {
+      return get(/databases/$(database)/documents/patients/$(patientId)).data.organizationId;
+    }
+
+    match /organizations/{orgId} {
+      allow read: if sameOrg(orgId);
+      allow create: if isOwner() && request.resource.data.id == orgId;
+      allow update: if isOwner() && sameOrg(orgId);
+      allow delete: if false;
+    }
+
+    match /apps/{appId} {
+      allow read: if active();
+      allow create, update: if isOwner();
+      allow delete: if false;
+    }
+
+    match /memberships/{uid} {
+      allow get: if signedIn() && (
+        request.auth.uid == uid ||
+        (isAdmin() && resource.data.organizationId == me().organizationId)
+      );
+
+      allow list: if isAdmin() &&
+        resource.data.organizationId == me().organizationId;
+
+      allow create: if signedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.status == "active" &&
+        request.resource.data.globalRole in ["member", "admin"] &&
+        request.resource.data.inviteToken is string &&
+        exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)) &&
+        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.status == "pending" &&
+        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.email == request.auth.token.email &&
+        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.organizationId == request.resource.data.organizationId &&
+        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.globalRole == request.resource.data.globalRole &&
+        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.appRoles == request.resource.data.appRoles;
+
+      allow update: if (
+        isOwner() &&
+        resource.data.globalRole != "owner" &&
+        resource.data.organizationId == me().organizationId &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.uid == resource.data.uid
+      ) || (
+        me().globalRole == "admin" &&
+        resource.data.globalRole == "member" &&
+        resource.data.organizationId == me().organizationId &&
+        request.resource.data.globalRole == "member" &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.uid == resource.data.uid
+      );
+
+      allow delete: if false;
+    }
+
+    match /invites/{token} {
+      allow get: if signedIn() && (
+        (
+          active() &&
+          isAdmin() &&
+          resource.data.organizationId == me().organizationId
+        ) ||
+        resource.data.email == request.auth.token.email
+      );
+
+      allow list: if isAdmin() &&
+        resource.data.organizationId == me().organizationId;
+
+      allow create: if isOwner() &&
+        request.resource.data.organizationId == me().organizationId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status == "pending" &&
+        request.resource.data.globalRole in ["member", "admin"]
+        ||
+        (
+          active() &&
+          me().globalRole == "admin" &&
+          request.resource.data.organizationId == me().organizationId &&
+          request.resource.data.createdBy == request.auth.uid &&
+          request.resource.data.status == "pending" &&
+          request.resource.data.globalRole == "member" &&
+          request.resource.data.appRoles.keys().hasOnly(["anthropometry"]) &&
+          request.resource.data.appRoles.anthropometry in [
+            "physician",
+            "nutritionist",
+            "assistant"
+          ]
+        );
+
+      allow update: if (
+        isAdmin() &&
+        resource.data.organizationId == me().organizationId &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.createdBy == resource.data.createdBy
+      ) || (
+        signedIn() &&
+        resource.data.email == request.auth.token.email &&
+        resource.data.status == "pending" &&
+        request.resource.data.status == "accepted" &&
+        request.resource.data.acceptedBy == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "acceptedBy", "acceptedAt"])
+      );
+
+      allow delete: if isOwner() &&
+        resource.data.organizationId == me().organizationId;
+    }
+
+    match /patients/{patientId} {
+      allow read: if hasAnthropometryRole() &&
+        sameOrg(resource.data.organizationId);
+
+      allow create: if canRegisterPatient() &&
+        sameOrg(request.resource.data.organizationId) &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      allow update: if canRegisterPatient() &&
+        sameOrg(resource.data.organizationId) &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "fullName",
+          "birthDate",
+          "sex",
+          "email",
+          "phone",
+          "heightCm",
+          "updatedAt"
+        ]);
+
+      allow delete: if false;
+
+      match /assessments/{assessmentId} {
+        allow read: if hasAnthropometryRole() &&
+          sameOrg(patientOrg(patientId));
+
+        allow create: if canEditClinical() &&
+          sameOrg(patientOrg(patientId)) &&
+          request.resource.data.clinicianId == request.auth.uid;
+
+        allow update: if canEditClinical() &&
+          sameOrg(patientOrg(patientId)) &&
+          request.resource.data.clinicianId == resource.data.clinicianId;
+
+        allow delete: if false;
+      }
+
+      match /reports/{reportId} {
+        allow read: if hasAnthropometryRole() &&
+          sameOrg(patientOrg(patientId));
+
+        allow create: if canEditClinical() &&
+          sameOrg(patientOrg(patientId)) &&
+          request.resource.data.createdBy == request.auth.uid;
+
+        allow update, delete: if false;
+      }
+    }
+
+    match /activity/{eventId} {
+      allow read: if isAdmin() &&
+        resource.data.organizationId == me().organizationId;
+
+      allow create: if isAdmin() &&
+        request.resource.data.organizationId == me().organizationId &&
+        request.resource.data.actorUid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
