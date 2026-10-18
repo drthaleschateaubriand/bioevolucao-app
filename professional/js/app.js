@@ -1,8 +1,8 @@
-import { CONFIG } from "../config.js";
-import { AppDataStore } from "./data-store.js";
+import { CONFIG } from "../config.js?v=savefix4";
+import { AppDataStore } from "./data-store.js?v=savefix4";
 import { parseNumber, bmi, compositionFromFatPercent, jacksonPollock7, ageFromBirthDate, formatNumber } from "./calculations.js";
-import { FirebaseClient } from "../../shared/firebase-client.js";
-import { firebaseConfigured } from "../../shared/platform-config.js";
+import { FirebaseClient } from "../../shared/firebase-client.js?v=savefix4";
+import { firebaseConfigured } from "../../shared/platform-config.js?v=savefix4";
 
 const store = new AppDataStore();
 const app = document.querySelector("#app");
