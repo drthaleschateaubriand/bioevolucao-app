@@ -1,6 +1,6 @@
 import { PreviewStore } from "./store.js";
-import { FirebaseClient } from "../../shared/firebase-client.js";
-import { firebaseConfigured } from "../../shared/platform-config.js";
+import { FirebaseClient } from "../../shared/firebase-client.js?v=savefix3";
+import { firebaseConfigured } from "../../shared/platform-config.js?v=savefix3";
 
 export class AppDataStore {
   constructor() {
@@ -49,10 +49,12 @@ export class AppDataStore {
     const current = (patient.assessments || []).find(a =>
       a.id === assessment.id || a.date === assessment.date
     );
-    const saved = await FirebaseClient.saveAssessment(patientId, {
-      ...assessment,
-      id: current?.id || assessment.id
-    });
+    const assessmentToSave = { ...assessment };
+    const existingId = current?.id || assessment.id;
+    if (existingId) assessmentToSave.id = existingId;
+    else delete assessmentToSave.id;
+
+    const saved = await FirebaseClient.saveAssessment(patientId, assessmentToSave);
 
     if (!patient.assessments) patient.assessments = [];
     if (current) Object.assign(current, saved);
