@@ -1,100 +1,119 @@
 # Guia de integração com Cliniv
 
 ## Objetivo
-Permitir que Avaliação Antropométrica seja incorporada ao Cliniv sem reconstruir as regras clínicas e componentes do módulo.
+
+Incorporar a Avaliação Antropométrica ao Cliniv preservando regras clínicas, fluxo, relatórios e experiência já validados.
 
 ## Modelo preferencial
-Cliniv → Paciente → Avaliação Antropométrica
 
-O usuário já autenticado no Cliniv abre o módulo e o paciente correto é carregado automaticamente.
+**Cliniv → paciente já aberto → Avaliação Antropométrica**
 
-## Formas de integração suportadas
-### A. Módulo nativo
-A equipe do Cliniv reutiliza os componentes e regras do projeto dentro da aplicação principal.
-É a opção preferencial de longo prazo.
+O profissional usa a sessão Cliniv existente. O módulo recebe automaticamente o paciente e o profissional.
 
-### B. Aplicação incorporada
-O Cliniv incorpora a aplicação em área própria e envia contexto seguro do paciente e do profissional.
+## Recomendação técnica
 
-### C. Aplicação externa com SSO
-O Cliniv abre a aplicação externa já autenticada e com o paciente selecionado.
+A aplicação atual é uma implementação de referência. Na incorporação nativa, substituir:
 
-## Dados mínimos enviados pelo Cliniv
-- external_patient_id;
-- nome completo;
-- data de nascimento;
+- Firebase Authentication → autenticação/SSO Cliniv;
+- Firestore → persistência Cliniv;
+- membership Firebase → RBAC Cliniv;
+- GitHub Pages → infraestrutura Cliniv.
+
+Manter:
+- cálculos;
+- estrutura funcional;
+- OCR;
+- organização dos dados;
+- gráficos;
+- tabelas;
+- relatório;
+- comportamento de campos opcionais.
+
+## Contexto mínimo
+
+Profissional:
+- id;
+- nome;
+- registro profissional;
+- papel/permissões.
+
+Paciente:
+- patient_id;
+- nome;
+- nascimento;
 - sexo;
 - e-mail;
 - telefone;
-- altura, quando disponível.
+- altura.
 
-## Dados retornados ao Cliniv
-- avaliação estruturada;
+## Persistência sugerida
+
+Uma avaliação deve manter:
+- patient_id;
+- professional_id;
+- data/hora;
 - bioimpedância;
 - adipometria;
-- perímetros;
-- texto de evolução;
-- referência do relatório PDF;
-- data/hora;
+- antropometria;
+- autoria;
+- histórico de alterações quando aplicável.
+
+## OCR
+
+Aceitar:
+- múltiplas imagens;
+- PDFs textuais;
+- PDFs escaneados;
+- PDFs multipágina.
+
+Nenhum valor extraído deve ser salvo sem conferência do profissional.
+
+## Prontuário
+
+O módulo gera texto factual para inserção no prontuário.
+
+A integração ideal é o Cliniv receber esse texto de forma estruturada ou por ação explícita do profissional, mantendo rastreabilidade.
+
+## Relatório
+
+O módulo deve permitir relatório/PDF com:
+- identificação;
+- gráficos;
+- tabelas;
+- medidas;
 - profissional responsável.
 
-## Contrato sugerido
-### Abrir contexto
-POST /integration/cliniv/session
+## SSO e segurança
 
-Entrada:
-- patient_external_id
-- professional_external_id
-- nonce
-- expires_at
-- signature ou token assinado
-
-Saída:
-- session_token
-- patient_id interno
-- redirect_url
-
-### Registrar avaliação
-POST /api/v1/patients/{patient_id}/assessments
-
-### Consultar evolução
-GET /api/v1/patients/{patient_id}/assessments
-
-### Obter texto para prontuário
-GET /api/v1/assessments/{assessment_id}/chart-text
-
-### Obter relatório
-GET /api/v1/assessments/{assessment_id}/report
-
-## SSO
 Não transmitir senha do Cliniv.
-Preferir OIDC/OAuth2, JWT assinado de curta duração ou mecanismo oficial disponibilizado pelo Cliniv.
 
-## Incorporação
-Se iframe for utilizado temporariamente:
-- liberar apenas origem Cliniv autorizada;
-- Content-Security-Policy frame-ancestors restrito;
-- tokens curtos;
-- nunca usar parâmetros de URL com dados clínicos sensíveis.
+Se for necessário desacoplar temporariamente:
+- usar OIDC/OAuth2 ou JWT assinado de curta duração;
+- validar origem;
+- evitar dados clínicos sensíveis em parâmetros de URL;
+- nunca confiar apenas em permissões do frontend.
 
-## Identidade visual
-O frontend foi pensado para aceitar tokens de tema. A equipe do Cliniv poderá substituir:
-- cor principal;
-- tipografia;
-- logotipo;
-- espaçamentos;
-- cabeçalho.
+## Iframe
 
-## Entrega técnica ao Cliniv
-- código-fonte;
-- esquema do banco;
-- documentação das regras de cálculo;
-- documentação da API;
-- matriz de permissões;
-- instruções de implantação;
-- variáveis de ambiente necessárias;
-- testes dos cálculos;
-- checklist de segurança.
+Pode ser solução temporária, não a preferencial.
 
-## Observação
-A integração final depende das APIs, padrões de autenticação e políticas técnicas fornecidas pela equipe do Cliniv.
+Se usado:
+- `frame-ancestors` restrito ao Cliniv;
+- sessão curta;
+- comunicação segura por postMessage com origem validada;
+- nada de dados sensíveis expostos na URL.
+
+## Entrega
+
+Pacote técnico:
+`handoff-cliniv/`
+
+Aplicação de referência:
+https://drthaleschateaubriand.github.io/bioevolucao-app/professional/
+
+Código:
+https://github.com/drthaleschateaubriand/bioevolucao-app
+
+## Dependência externa
+
+A integração final depende do padrão de autenticação, APIs, modelo de dados e políticas técnicas disponibilizados pela equipe do Cliniv.
