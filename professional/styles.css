@@ -131,25 +131,26 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 
 .chart-mode-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:#fafbfc;border-radius:7px;padding:10px 12px;margin:14px 0}
 .grouped-chart{background:#fff}
-.grouped-plot{display:flex;align-items:flex-end;gap:18px;min-height:250px;overflow-x:auto;padding:10px 4px 0}
-.group-date{min-width:118px;flex:1;display:flex;flex-direction:column;align-items:center}
-.group-bars{height:205px;display:flex;align-items:flex-end;justify-content:center;gap:4px;width:100%}
-.single-bar{position:relative;width:30px;min-height:18px;border-radius:4px 4px 0 0}
-.single-bar span{position:absolute;left:50%;top:5px;transform:translateX(-50%);font-size:9px;font-weight:800;color:#fff;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.grouped-plot{display:flex;align-items:flex-end;gap:22px;min-height:260px;overflow-x:auto;padding:10px 10px 4px;scrollbar-gutter:stable}
+.group-date{min-width:200px;flex:1;display:flex;flex-direction:column;align-items:center}
+.group-bars{height:210px;display:flex;align-items:flex-end;justify-content:center;gap:8px;width:100%}
+.single-bar{position:relative;width:54px;min-height:22px;border-radius:5px 5px 0 0;overflow:visible}
+.single-bar span{position:absolute;left:0;right:0;top:7px;transform:none;width:100%;padding:0 2px;text-align:center;font-size:10px;line-height:1.05;font-weight:800;color:#fff;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.18)}
 .single-bar.fat span{color:#4b3d00;text-shadow:none}
 .grouped-chart .bar-date{font-size:10px;margin-top:8px}
 .grouped-chart .bar-caption{font-size:10px}
 @media(max-width:620px){
   .chart-mode-switch{align-items:flex-start;flex-direction:column}
-  .grouped-plot{gap:10px}
-  .group-date{min-width:105px}
-  .single-bar{width:27px}
+  .grouped-plot{gap:14px;padding-left:6px;padding-right:6px}
+  .group-date{min-width:185px}
+  .single-bar{width:50px}
 }
 @media print{
-  .grouped-plot{overflow:visible!important;gap:10px!important}
-  .group-date{min-width:0!important}
-  .single-bar{width:24px!important}
-  .single-bar span{font-size:7px!important}
+  .report-page .graph-grid{grid-template-columns:1fr!important}
+  .grouped-plot{overflow:visible!important;gap:14px!important;padding-left:2px!important;padding-right:2px!important}
+  .group-date{min-width:145px!important}
+  .single-bar{width:42px!important}
+  .single-bar span{font-size:8px!important}
 }
 
 @media print{
