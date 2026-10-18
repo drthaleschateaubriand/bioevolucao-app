@@ -4,7 +4,7 @@ import { parseNumber, bmi, compositionFromFatPercent, jacksonPollock7, ageFromBi
 
 const store = new PreviewStore();
 const app = document.querySelector("#app");
-const state = { auth:false, patientId:null, tab:"resumo", patientMode:false, selected:new Set(), selectionInitialized:false };
+const state = { auth:false, patientId:null, tab:"resumo", patientMode:false, selected:new Set(), selectionInitialized:false, chartMode:"grouped" };
 
 function esc(s){ return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]}); }
 function datePt(s){ if(!s)return "—"; var a=s.split("-"); return a.length===3?a[2]+"/"+a[1]+"/"+a[0]:s; }
@@ -86,7 +86,8 @@ function tableFor(arr,rows,source){
   return '<div class="tablewrap"><table><thead><tr><th>Parâmetro</th>'+arr.map(function(a){return '<th>'+datePt(a.date)+'</th>';}).join("")+'</tr></thead><tbody>'+visible.map(function(r){return '<tr><td>'+r[0]+'</td>'+arr.map(function(a){var obj=a[source]||{};var v=obj[r[1]];return '<td>'+formatNumber(v,r[1]==="bmr"||r[1]==="visceral"||r[1]==="sum"?0:1)+(v!=null&&r[2]?' '+r[2]:'')+'</td>';}).join("")+'</tr>';}).join("")+'</tbody></table></div>';
 }
 
-function compositionBars(arr,mode,title){
+function compositionBars(arr,mode,title,forceMode){
+  var renderMode=forceMode||state.chartMode;
   var data=arr.map(function(a){
     var weight=a.bio&&a.bio.weight;
     var fat=null,lean=null,fatPct=null;
@@ -104,7 +105,10 @@ function compositionBars(arr,mode,title){
   }).filter(function(x){return x.weight!=null&&x.fat!=null&&x.lean!=null});
   if(!data.length)return '<div class="notice">Sem dados suficientes para o gráfico de composição corporal.</div>';
   var max=Math.max.apply(null,data.map(function(x){return x.weight}));
-  return '<div class="bar-chart"><div class="bar-chart-head"><div><strong>'+title+'</strong><div class="small muted">Massa livre de gordura + massa gorda</div></div><div class="bar-legend"><span><i class="legend-dot lean"></i>Massa livre</span><span><i class="legend-dot fat"></i>Massa gorda</span></div></div><div class="bar-plot">'+data.map(function(x){var total=Math.max(72,Math.round(190*x.weight/max));var leanPct=100*x.lean/x.weight;var fatPct=100*x.fat/x.weight;return '<div class="bar-col"><div class="bar-value">'+formatNumber(x.weight)+' kg</div><div class="bar-stack" style="height:'+total+'px"><div class="bar-seg lean" style="height:'+leanPct+'%" title="Massa livre: '+formatNumber(x.lean)+' kg"></div><div class="bar-seg fat" style="height:'+fatPct+'%" title="Massa gorda: '+formatNumber(x.fat)+' kg"></div></div><div class="bar-date">'+datePt(x.date).slice(0,5)+'</div><div class="bar-caption">'+formatNumber(x.fatPct)+'%</div></div>';}).join("")+'</div></div>';
+  if(renderMode==="grouped"){
+    return '<div class="bar-chart grouped-chart"><div class="bar-chart-head"><div><strong>'+title+'</strong><div class="small muted">Peso corporal, massa livre de gordura e massa gorda</div></div><div class="bar-legend"><span><i class="legend-dot weight"></i>Peso corporal</span><span><i class="legend-dot lean"></i>Massa livre</span><span><i class="legend-dot fat"></i>Massa gorda</span></div></div><div class="grouped-plot">'+data.map(function(x){var hW=Math.max(18,Math.round(190*x.weight/max));var hL=Math.max(18,Math.round(190*x.lean/max));var hF=Math.max(18,Math.round(190*x.fat/max));return '<div class="group-date"><div class="group-bars"><div class="single-bar weight" style="height:'+hW+'px"><span>'+formatNumber(x.weight)+' kg</span></div><div class="single-bar lean" style="height:'+hL+'px"><span>'+formatNumber(x.lean)+' kg</span></div><div class="single-bar fat" style="height:'+hF+'px"><span>'+formatNumber(x.fat)+' kg</span></div></div><div class="bar-date">'+datePt(x.date)+'</div><div class="bar-caption">'+formatNumber(x.fatPct)+'% gordura</div></div>';}).join("")+'</div></div>';
+  }
+  return '<div class="bar-chart"><div class="bar-chart-head"><div><strong>'+title+'</strong><div class="small muted">Composição empilhada</div></div><div class="bar-legend"><span><i class="legend-dot lean"></i>Massa livre</span><span><i class="legend-dot fat"></i>Massa gorda</span></div></div><div class="bar-plot">'+data.map(function(x){var total=Math.max(72,Math.round(190*x.weight/max));var leanPct=100*x.lean/x.weight;var fatPct=100*x.fat/x.weight;return '<div class="bar-col"><div class="bar-value">'+formatNumber(x.weight)+' kg</div><div class="bar-stack" style="height:'+total+'px"><div class="bar-seg lean" style="height:'+leanPct+'%" title="Massa livre: '+formatNumber(x.lean)+' kg"></div><div class="bar-seg fat" style="height:'+fatPct+'%" title="Massa gorda: '+formatNumber(x.fat)+' kg"></div></div><div class="bar-date">'+datePt(x.date).slice(0,5)+'</div><div class="bar-caption">'+formatNumber(x.fatPct)+'%</div></div>';}).join("")+'</div></div>';
 }
 
 function circumferenceBars(arr,key,label){
@@ -120,7 +124,7 @@ function evolution(p){
   var bioRows=[["Peso","weight","kg"],["IMC","bmi",""],["Gordura corporal","fatPct","%"],["Massa gorda","fatMass","kg"],["Massa muscular","muscleMass","kg"],["Massa livre de gordura","leanMass","kg"],["Gordura visceral","visceral",""],["Metabolismo basal","bmr","kcal"]];
   var skinRows=[["Gordura corporal","fatPct","%"],["Densidade","density","kg/L"],["Somatório","sum","mm"]];
   var antRows=[["Cintura","waist","cm"],["Quadril","hip","cm"],["Panturrilha","calf","cm"],["Braço / CB","arm","cm"],["Pescoço","neck","cm"],["Abdome","abdomen","cm"],["Coxa","thigh","cm"]];
-  return '<section class="card eval-block"><div class="eval-head"><div><h3 class="section-title">Evolução completa</h3><p class="muted">'+arr.length+' de '+all.length+' datas selecionadas.</p></div><div class="actions"><button class="btn" data-action="all-dates">Todas</button><button class="btn" data-action="clear-dates">Limpar</button></div></div><div class="actions" style="margin:14px 0">'+checks+'</div>'+
+  return '<section class="card eval-block"><div class="eval-head"><div><h3 class="section-title">Evolução completa</h3><p class="muted">'+arr.length+' de '+all.length+' datas selecionadas.</p></div><div class="actions"><button class="btn" data-action="all-dates">Todas</button><button class="btn" data-action="clear-dates">Limpar</button></div></div><div class="chart-mode-switch"><span class="small muted">Modo do gráfico</span><div class="actions"><button class="btn '+(state.chartMode==="grouped"?"primary":"")+'" data-chart-mode="grouped">Barras lado a lado</button><button class="btn '+(state.chartMode==="stacked"?"primary":"")+'" data-chart-mode="stacked">Empilhado</button></div></div><div class="actions" style="margin:14px 0">'+checks+'</div>'+
   '<div class="graph-grid">'+compositionBars(arr,"bio","Composição corporal · Bioimpedância")+compositionBars(arr,"skinfold","Composição corporal · Adipômetro")+'</div>'+
   '<h3>Bioimpedância</h3>'+tableFor(arr,bioRows,"bio")+
   '<h3>Adipômetro</h3>'+tableFor(arr,skinRows,"skinfold")+
@@ -161,7 +165,7 @@ function report(p){
   }
   return '<section class="card eval-block no-print"><div class="eval-head"><div><h3 class="section-title">Prontuário e relatório completo</h3><p class="muted">O texto abaixo é para o Cliniv. A impressão inclui gráficos e todas as tabelas preenchidas.</p></div></div><div class="field"><label>Texto para copiar no Cliniv</label><textarea id="reportText" class="report">'+esc(t)+'</textarea></div><div class="actions" style="margin-top:12px"><button class="btn primary" data-action="copy-report">Copiar para prontuário</button><button class="btn" data-action="print-report">Imprimir relatório completo / PDF</button><button class="btn" data-action="email-report">Enviar por e-mail</button></div><div class="field" style="margin-top:12px;max-width:420px"><label>E-mail</label><input id="reportEmail" value="'+esc(p.email||"")+'"></div></section>'+
   '<section class="report-page" style="margin-top:16px"><div class="report-header"><div><div class="small muted">AVALIAÇÃO ANTROPOMÉTRICA</div><h2>'+esc(p.fullName)+'</h2><p>'+(ageFromBirthDate(p.birthDate)||"—")+' anos · '+(p.heightCm?formatNumber(p.heightCm,0)+" cm":"altura não registrada")+' · '+(arr.length?datePt(arr[0].date)+" a "+datePt(arr[arr.length-1].date):"—")+'</p></div><div class="report-sign"><strong>'+CONFIG.clinician.name+'</strong><br><span>'+CONFIG.clinician.crm+'</span></div></div>'+
-  '<div class="report-section"><h3>Composição corporal</h3><div class="graph-grid">'+compositionBars(arr,"bio","Bioimpedância")+compositionBars(arr,"skinfold","Adipômetro")+'</div></div>'+
+  '<div class="report-section"><h3>Composição corporal</h3><div class="graph-grid">'+compositionBars(arr,"bio","Bioimpedância","grouped")+compositionBars(arr,"skinfold","Adipômetro","grouped")+'</div></div>'+
   '<div class="report-section"><h3>Bioimpedância</h3>'+tableFor(arr,bioRows,"bio")+'</div>'+
   '<div class="report-section"><h3>Adipômetro · Jackson-Pollock 7 dobras</h3>'+tableFor(arr,skinRows,"skinfold")+foldTable()+'</div>'+
   '<div class="report-section"><h3>Circunferências</h3>'+tableFor(arr,antRows,"anthropometry")+'</div>'+
@@ -190,6 +194,7 @@ function bind(){
   document.querySelectorAll("[data-tab]").forEach(function(b){b.addEventListener("click",function(){state.tab=b.dataset.tab;render()})});
   document.querySelectorAll("[data-patient]").forEach(function(b){b.addEventListener("click",function(){state.patientId=b.dataset.patient;state.tab="resumo";state.selected=new Set();state.selectionInitialized=false;render()})});
   document.querySelectorAll("[data-date-filter]").forEach(function(c){c.addEventListener("change",function(){state.selectionInitialized=true;c.checked?state.selected.add(c.dataset.dateFilter):state.selected.delete(c.dataset.dateFilter);render()})});
+  document.querySelectorAll("[data-chart-mode]").forEach(function(b){b.addEventListener("click",function(){state.chartMode=b.dataset.chartMode;render()})});
 }
 
 document.addEventListener("click",async function(e){
