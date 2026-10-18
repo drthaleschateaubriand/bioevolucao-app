@@ -317,7 +317,7 @@ function report(p){
   '<div class="report-section adipometer-report-block"><h3>Adipômetro · composição estimada</h3>'+skinfoldSummaryTable(arr)+'</div>'+
   '<div class="report-section adipometer-report-block"><h3>Tabela comparativa de medidas aferidas</h3>'+skinfoldMeasurementsTable(arr,p)+'</div>'+
   '<div class="report-section"><h3>Circunferências</h3>'+tableFor(arr,antRows,"anthropometry")+'</div>'+
-  '<div class="report-section"><h3>Evolução registrada</h3><p>'+esc(t)+'</p></div>'+
+
   '<div class="report-footer"><strong>'+CONFIG.clinician.name+'</strong><br><span>'+CONFIG.clinician.crm+'</span><p class="footer-note">Relatório de medidas e estimativas antropométricas. Campos não registrados são omitidos. Sem interpretação diagnóstica automática.</p></div></section>';
 }
 
