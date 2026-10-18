@@ -1,6 +1,6 @@
 import { PreviewStore } from "./store.js";
-import { FirebaseClient } from "../../shared/firebase-client.js?v=savefix3";
-import { firebaseConfigured } from "../../shared/platform-config.js?v=savefix3";
+import { FirebaseClient } from "../../shared/firebase-client.js?v=savefix4";
+import { firebaseConfigured } from "../../shared/platform-config.js?v=savefix4";
 
 export class AppDataStore {
   constructor() {
