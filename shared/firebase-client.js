@@ -290,10 +290,10 @@ export const FirebaseClient = {
     const c = await context();
     if (!c) throw new Error("Firebase ainda não configurado.");
     const ref = c.firestoreSdk.doc(c.db, "patients", id);
-    await c.firestoreSdk.updateDoc(ref, {
+    await c.firestoreSdk.updateDoc(ref, stripUndefined({
       ...patch,
       updatedAt: c.firestoreSdk.serverTimestamp()
-    });
+    }));
   },
 
   async saveAssessment(patientId, assessment) {
@@ -302,13 +302,14 @@ export const FirebaseClient = {
     if (!c || !user) throw new Error("Sessão necessária.");
     const id = assessment.id || String(assessment.date || "").replace(/[^0-9]/g, "") || crypto.randomUUID();
     const ref = c.firestoreSdk.doc(c.db, "patients", patientId, "assessments", id);
+    const { id: ignoredAssessmentId, ...assessmentData } = assessment;
     const payload = stripUndefined({
-      ...assessment,
+      ...assessmentData,
       clinicianId: user.uid,
       updatedAt: c.firestoreSdk.serverTimestamp(),
       createdAt: c.firestoreSdk.serverTimestamp()
     });
     await c.firestoreSdk.setDoc(ref, payload, { merge: true });
-    return stripUndefined({ id, ...assessment });
+    return stripUndefined({ id, ...assessmentData });
   }
 };
