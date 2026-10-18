@@ -212,6 +212,58 @@ function circumferenceBars(arr,key,label){
   return '<div class="mini-trend"><strong>'+label+'</strong>'+data.map(function(x){return '<div class="mini-row"><span>'+datePt(x.date)+'</span><div class="mini-track"><div class="mini-fill" style="width:'+Math.max(8,100*x.value/max)+'%"></div></div><b>'+formatNumber(x.value)+' cm</b></div>';}).join("")+'</div>';
 }
 
+
+function skinfoldComposition(a){
+  var weight=a&&a.bio&&a.bio.weight;
+  var fatPct=a&&a.skinfold&&a.skinfold.fatPct;
+  if(weight==null||fatPct==null)return {fatMass:null,leanMass:null};
+  var fatMass=weight*fatPct/100;
+  return {fatMass:fatMass,leanMass:weight-fatMass};
+}
+
+function skinfoldSummaryTable(arr){
+  var rows=[
+    ["Peso atual",function(a){return a.bio&&a.bio.weight},"kg",1],
+    ["Estatura",function(a){return a.bio&&a.bio.weight!=null?null:null},"",0],
+    ["IMC",function(a){return a.bio&&a.bio.bmi},"kg/m²",1],
+    ["Percentual de gordura",function(a){return a.skinfold&&a.skinfold.fatPct},"% ",1],
+    ["Massa gorda",function(a){return skinfoldComposition(a).fatMass},"kg",1],
+    ["Massa livre de gordura",function(a){return skinfoldComposition(a).leanMass},"kg",1],
+    ["Somatório das 7 dobras",function(a){return a.skinfold&&a.skinfold.sum},"mm",0],
+    ["Densidade corporal",function(a){return a.skinfold&&a.skinfold.density},"kg/L",4]
+  ];
+  rows[1][1]=function(){return null};
+  var hasHeight=arr.some(function(){return false});
+  var visible=rows.filter(function(r){return r[0]!=="Estatura"&&arr.some(function(a){return r[1](a)!=null})});
+  return '<div class="tablewrap adipometer-table"><table><thead><tr><th>Parâmetro</th>'+arr.map(function(a){return '<th>'+datePt(a.date)+'</th>';}).join("")+'</tr></thead><tbody>'+visible.map(function(r){return '<tr><td>'+r[0]+'</td>'+arr.map(function(a){var v=r[1](a);return '<td>'+(v==null?'—':formatNumber(v,r[3])+(r[2]?' '+r[2]:""))+'</td>';}).join("")+'</tr>';}).join("")+'</tbody></table></div>';
+}
+
+function skinfoldMeasurementsTable(arr,p){
+  var rows=[
+    ["Peso atual",function(a){return a.bio&&a.bio.weight},"kg",1],
+    ["Estatura",function(){return p&&p.heightCm},"cm",0],
+    ["Dobra Tricipital",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.triceps},"mm",1],
+    ["Dobra Abdominal",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.abdomen},"mm",1],
+    ["Dobra Subescapular",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.subscapular},"mm",1],
+    ["Dobra Axilar Média",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.axillary},"mm",1],
+    ["Dobra da Coxa",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.thigh},"mm",1],
+    ["Dobra Peitoral / Torácica",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.chest},"mm",1],
+    ["Dobra Supra-ilíaca",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.suprailiac},"mm",1],
+    ["Dobra Bicipital",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.biceps},"mm",1],
+    ["Dobra Panturrilha Medial",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.medialCalf},"mm",1],
+    ["Circunferência da Cintura",function(a){return a.anthropometry&&a.anthropometry.waist},"cm",1],
+    ["Circunferência do Abdome",function(a){return a.anthropometry&&a.anthropometry.abdomen},"cm",1],
+    ["Circunferência do Quadril",function(a){return a.anthropometry&&a.anthropometry.hip},"cm",1],
+    ["Circunferência do Braço / CB",function(a){return a.anthropometry&&a.anthropometry.arm},"cm",1],
+    ["Circunferência da Coxa",function(a){return a.anthropometry&&a.anthropometry.thigh},"cm",1],
+    ["Circunferência da Panturrilha",function(a){return a.anthropometry&&a.anthropometry.calf},"cm",1],
+    ["Circunferência do Pescoço",function(a){return a.anthropometry&&a.anthropometry.neck},"cm",1]
+  ];
+  var visible=rows.filter(function(r){return arr.some(function(a){return r[1](a)!=null})});
+  if(!visible.length)return '<div class="notice">Sem medidas do adipômetro registradas.</div>';
+  return '<div class="tablewrap adipometer-table"><table><thead><tr><th>Parâmetro</th>'+arr.map(function(a){return '<th>'+datePt(a.date)+'</th>';}).join("")+'</tr></thead><tbody>'+visible.map(function(r){return '<tr><td>'+r[0]+'</td>'+arr.map(function(a){var v=r[1](a);return '<td>'+(v==null?'—':formatNumber(v,r[3])+(r[2]?' '+r[2]:""))+'</td>';}).join("")+'</tr>';}).join("")+'</tbody></table></div>';
+}
+
 function evolution(p){
   var all=ordered(p), arr=chosen(p);
   var checks=all.map(function(a){return '<label class="btn"><input type="checkbox" data-date-filter="'+a.date+'" '+(state.selected.has(a.date)?"checked":"")+'> '+datePt(a.date)+'</label>';}).join("");
@@ -219,9 +271,10 @@ function evolution(p){
   var skinRows=[["Gordura corporal","fatPct","%"],["Densidade","density","kg/L"],["Somatório","sum","mm"]];
   var antRows=[["Cintura","waist","cm"],["Quadril","hip","cm"],["Panturrilha","calf","cm"],["Braço / CB","arm","cm"],["Pescoço","neck","cm"],["Abdome","abdomen","cm"],["Coxa","thigh","cm"]];
   return '<section class="card eval-block"><div class="eval-head"><div><h3 class="section-title">Evolução completa</h3><p class="muted">'+arr.length+' de '+all.length+' datas selecionadas.</p></div><div class="actions"><button class="btn" data-action="all-dates">Todas</button><button class="btn" data-action="clear-dates">Limpar</button></div></div><div class="chart-mode-switch"><span class="small muted">Modo do gráfico</span><div class="actions"><button class="btn '+(state.chartMode==="grouped"?"primary":"")+'" data-chart-mode="grouped">Barras lado a lado</button><button class="btn '+(state.chartMode==="stacked"?"primary":"")+'" data-chart-mode="stacked">Empilhado</button></div></div><div class="actions" style="margin:14px 0">'+checks+'</div>'+
-  '<div class="graph-grid">'+compositionBars(arr,"bio","Composição corporal · Bioimpedância")+compositionBars(arr,"skinfold","Composição corporal · Adipômetro")+'</div>'+
+  '<div class="graph-grid">'+compositionBars(arr,"bio","Composição corporal · Bioimpedância")+compositionBars(arr,"skinfold","Resultados analíticos · Adipômetro")+'</div>'+
   '<h3>Bioimpedância</h3>'+tableFor(arr,bioRows,"bio")+
-  '<h3>Adipômetro</h3>'+tableFor(arr,skinRows,"skinfold")+
+  '<h3>Adipômetro · composição estimada</h3>'+skinfoldSummaryTable(arr)+
+  '<h3>Tabela comparativa de medidas aferidas</h3>'+skinfoldMeasurementsTable(arr,p)+
   '<h3>Antropometria</h3>'+tableFor(arr,antRows,"anthropometry")+
   '<div class="graph-grid">'+circumferenceBars(arr,"waist","Evolução da cintura")+circumferenceBars(arr,"calf","Evolução da panturrilha")+'</div></section>';
 }
@@ -259,9 +312,10 @@ function report(p){
   }
   return '<section class="card eval-block no-print"><div class="eval-head"><div><h3 class="section-title">Prontuário e relatório completo</h3><p class="muted">O texto abaixo é para o Cliniv. A impressão inclui gráficos e todas as tabelas preenchidas.</p></div></div><div class="field"><label>Texto para copiar no Cliniv</label><textarea id="reportText" class="report">'+esc(t)+'</textarea></div><div class="actions" style="margin-top:12px"><button class="btn primary" data-action="copy-report">Copiar para prontuário</button><button class="btn" data-action="print-report">Imprimir relatório completo / PDF</button><button class="btn" data-action="email-report">Enviar por e-mail</button></div><div class="field" style="margin-top:12px;max-width:420px"><label>E-mail</label><input id="reportEmail" value="'+esc(p.email||"")+'"></div></section>'+
   '<section class="report-page" style="margin-top:16px"><div class="report-header"><div><div class="small muted">AVALIAÇÃO ANTROPOMÉTRICA</div><h2>'+esc(p.fullName)+'</h2><p>'+(ageFromBirthDate(p.birthDate)||"—")+' anos · '+(p.heightCm?formatNumber(p.heightCm,0)+" cm":"altura não registrada")+' · '+(arr.length?datePt(arr[0].date)+" a "+datePt(arr[arr.length-1].date):"—")+'</p></div><div class="report-sign"><strong>'+CONFIG.clinician.name+'</strong><br><span>'+CONFIG.clinician.crm+'</span></div></div>'+
-  '<div class="report-section"><h3>Composição corporal</h3><div class="graph-grid">'+compositionBars(arr,"bio","Bioimpedância","grouped")+compositionBars(arr,"skinfold","Adipômetro","grouped")+'</div></div>'+
+  '<div class="report-section"><h3>Composição corporal</h3><div class="graph-grid">'+compositionBars(arr,"bio","Bioimpedância","grouped")+compositionBars(arr,"skinfold","Resultados analíticos · Adipômetro","grouped")+'</div></div>'+
   '<div class="report-section"><h3>Bioimpedância</h3>'+tableFor(arr,bioRows,"bio")+'</div>'+
-  '<div class="report-section"><h3>Adipômetro · Jackson-Pollock 7 dobras</h3>'+tableFor(arr,skinRows,"skinfold")+foldTable()+'</div>'+
+  '<div class="report-section adipometer-report-block"><h3>Adipômetro · composição estimada</h3>'+skinfoldSummaryTable(arr)+'</div>'+
+  '<div class="report-section adipometer-report-block"><h3>Tabela comparativa de medidas aferidas</h3>'+skinfoldMeasurementsTable(arr,p)+'</div>'+
   '<div class="report-section"><h3>Circunferências</h3>'+tableFor(arr,antRows,"anthropometry")+'</div>'+
   '<div class="report-section"><h3>Evolução registrada</h3><p>'+esc(t)+'</p></div>'+
   '<div class="report-footer"><strong>'+CONFIG.clinician.name+'</strong><br><span>'+CONFIG.clinician.crm+'</span><p class="footer-note">Relatório de medidas e estimativas antropométricas. Campos não registrados são omitidos. Sem interpretação diagnóstica automática.</p></div></section>';
