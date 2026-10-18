@@ -59,6 +59,57 @@ export const FirebaseClient = {
     return credential;
   },
 
+  async sendVerification() {
+    const c = await context();
+    const user = c && c.auth.currentUser;
+    if (!c || !user) throw new Error("Usuário não autenticado.");
+    await c.authSdk.sendEmailVerification(user);
+  },
+
+  async refreshUser() {
+    const c = await context();
+    const user = c && c.auth.currentUser;
+    if (!c || !user) return null;
+    await c.authSdk.reload(user);
+    await c.authSdk.getIdToken(user, true);
+    return c.auth.currentUser;
+  },
+
+  async bootstrapOwner(token) {
+    const c = await context();
+    const user = c && c.auth.currentUser;
+    if (!c || !user) throw new Error("Faça login primeiro.");
+    await c.authSdk.reload(user);
+    await c.authSdk.getIdToken(user, true);
+    const current = c.auth.currentUser;
+    if (!current.emailVerified) throw new Error("Confirme seu e-mail antes de ativar o proprietário.");
+
+    const bootstrapRef = c.firestoreSdk.doc(c.db, "bootstrap", token);
+    const membershipRef = c.firestoreSdk.doc(c.db, "memberships", current.uid);
+    const membership = {
+      uid: current.uid,
+      email: current.email,
+      displayName: current.displayName || "",
+      organizationId: PLATFORM_CONFIG.organizationId,
+      globalRole: "owner",
+      appRoles: { anthropometry: "owner" },
+      status: "active",
+      bootstrapToken: token,
+      createdAt: c.firestoreSdk.serverTimestamp(),
+      updatedAt: c.firestoreSdk.serverTimestamp()
+    };
+
+    const batch = c.firestoreSdk.writeBatch(c.db);
+    batch.set(membershipRef, membership);
+    batch.update(bootstrapRef, {
+      status: "used",
+      usedBy: current.uid,
+      usedAt: c.firestoreSdk.serverTimestamp()
+    });
+    await batch.commit();
+    return membership;
+  },
+
   async signOut() {
     const c = await context();
     if (!c) return;
