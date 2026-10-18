@@ -86,6 +86,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /bootstrap/{token} {
+      allow get, list: if false;
+
+      allow update: if signedIn() &&
+        request.auth.token.email_verified == true &&
+        resource.data.status == "pending" &&
+        resource.data.email == request.auth.token.email &&
+        request.resource.data.status == "used" &&
+        request.resource.data.usedBy == request.auth.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "usedBy", "usedAt"]);
+
+      allow create, delete: if false;
+    }
+
     match /memberships/{uid} {
       allow get: if signedIn() && (
         request.auth.uid == uid ||
@@ -100,14 +116,28 @@ service cloud.firestore {
         request.resource.data.uid == uid &&
         request.resource.data.email == request.auth.token.email &&
         request.resource.data.status == "active" &&
-        request.resource.data.globalRole in ["member", "admin"] &&
-        request.resource.data.inviteToken is string &&
-        exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)) &&
-        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.status == "pending" &&
-        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.email == request.auth.token.email &&
-        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.organizationId == request.resource.data.organizationId &&
-        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.globalRole == request.resource.data.globalRole &&
-        get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.appRoles == request.resource.data.appRoles;
+        (
+          (
+            request.resource.data.globalRole in ["member", "admin"] &&
+            request.resource.data.inviteToken is string &&
+            exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)) &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.status == "pending" &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.email == request.auth.token.email &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.organizationId == request.resource.data.organizationId &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.globalRole == request.resource.data.globalRole &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.inviteToken)).data.appRoles == request.resource.data.appRoles
+          ) ||
+          (
+            request.auth.token.email_verified == true &&
+            request.resource.data.globalRole == "owner" &&
+            request.resource.data.bootstrapToken is string &&
+            exists(/databases/$(database)/documents/bootstrap/$(request.resource.data.bootstrapToken)) &&
+            get(/databases/$(database)/documents/bootstrap/$(request.resource.data.bootstrapToken)).data.status == "pending" &&
+            get(/databases/$(database)/documents/bootstrap/$(request.resource.data.bootstrapToken)).data.email == request.auth.token.email &&
+            get(/databases/$(database)/documents/bootstrap/$(request.resource.data.bootstrapToken)).data.organizationId == request.resource.data.organizationId &&
+            request.resource.data.appRoles.anthropometry == "owner"
+          )
+        );
 
       allow update: if (
         isOwner() &&
