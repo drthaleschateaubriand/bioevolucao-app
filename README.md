@@ -24,3 +24,19 @@ Este é um **protótipo demonstrativo**, sem login, banco de dados seguro ou sin
 
 ## Requisitos de desenvolvimento
 Ver [PROMPT_DESENVOLVIMENTO.md](./PROMPT_DESENVOLVIMENTO.md).
+
+
+## Versão profissional
+
+A reconstrução profissional está sendo desenvolvida sem substituir o protótipo atual.
+
+Prévia:
+https://drthaleschateaubriand.github.io/bioevolucao-app/professional/
+
+Código e documentação:
+- `professional/`
+- `professional/docs/ESPECIFICACAO_MESTRE.md`
+- `professional/docs/INTEGRACAO_CLINIV.md`
+- `professional/supabase/schema.sql`
+
+A versão profissional está preparada para evoluir para autenticação real, banco em nuvem, auditoria, OCR de múltiplas imagens, relatórios e integração/SSO com Cliniv.
