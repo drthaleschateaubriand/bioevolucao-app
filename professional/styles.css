@@ -172,3 +172,16 @@ th{font-size:11px;color:var(--muted);text-transform:uppercase}
 }
 
 .btn:disabled{opacity:.42;cursor:not-allowed;background:#eef1f3!important;color:#8b96a1!important;border-color:#d8dde2!important;box-shadow:none!important}
+
+.adipometer-table table{font-size:12px}
+.adipometer-table thead th{background:#eceeef;color:#3c4858;font-weight:800}
+.adipometer-table tbody td:first-child{font-weight:650;color:#3c4858;min-width:190px}
+.adipometer-table th,.adipometer-table td{padding:9px 10px;vertical-align:middle}
+.adipometer-report-block{break-inside:avoid-page;page-break-inside:avoid}
+@media print{
+  .adipometer-table{overflow:visible!important}
+  .adipometer-table table{font-size:9px;table-layout:auto}
+  .adipometer-table th,.adipometer-table td{padding:5px 6px}
+  .adipometer-table tbody td:first-child{min-width:150px}
+  .adipometer-report-block{break-inside:avoid-page;page-break-inside:avoid}
+}
