@@ -229,7 +229,6 @@ function skinfoldSummaryTable(arr){
     ["Percentual de gordura",function(a){return a.skinfold&&a.skinfold.fatPct},"% ",1],
     ["Massa gorda",function(a){return skinfoldComposition(a).fatMass},"kg",1],
     ["Massa livre de gordura",function(a){return skinfoldComposition(a).leanMass},"kg",1],
-    ["Somatório das 7 dobras",function(a){return a.skinfold&&a.skinfold.sum},"mm",0],
     ["Densidade corporal",function(a){return a.skinfold&&a.skinfold.density},"kg/L",4]
   ];
   rows[1][1]=function(){return null};
@@ -249,6 +248,7 @@ function skinfoldMeasurementsTable(arr,p){
     ["Dobra da Coxa",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.thigh},"mm",1],
     ["Dobra Peitoral / Torácica",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.chest},"mm",1],
     ["Dobra Supra-ilíaca",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.suprailiac},"mm",1],
+    ["Somatório das 7 dobras",function(a){return a.skinfold&&a.skinfold.sum},"mm",0],
     ["Dobra Bicipital",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.biceps},"mm",1],
     ["Dobra Panturrilha Medial",function(a){return a.skinfold&&a.skinfold.folds&&a.skinfold.folds.medialCalf},"mm",1],
     ["Circunferência da Cintura",function(a){return a.anthropometry&&a.anthropometry.waist},"cm",1],
