@@ -1,10 +1,10 @@
 import { CONFIG } from "../config.js";
-import { PreviewStore } from "./store.js";
+import { AppDataStore } from "./data-store.js";
 import { parseNumber, bmi, compositionFromFatPercent, jacksonPollock7, ageFromBirthDate, formatNumber } from "./calculations.js";
 import { FirebaseClient } from "../../shared/firebase-client.js";
 import { firebaseConfigured } from "../../shared/platform-config.js";
 
-const store = new PreviewStore();
+const store = new AppDataStore();
 const app = document.querySelector("#app");
 const state = { auth:false, patientId:null, tab:"resumo", patientMode:false, selected:new Set(), selectionInitialized:false, chartMode:"grouped", user:null, membership:null, authReady:false };
 
@@ -356,7 +356,7 @@ function bindAssessment(p){
     document.querySelector("#ocrReview").classList.add("hidden");
     ocrStatus.textContent="Dados aplicados ao formulário. Confira antes de finalizar a avaliação.";
   });
-  document.querySelector("#assessmentForm").addEventListener("submit",function(e){e.preventDefault();var date=document.querySelector("#assessmentDate").value,W=parseNumber(w.value),H=parseNumber(h.value),F=parseNumber(f.value),C=compositionFromFatPercent(W,F),foldEls=[].slice.call(document.querySelectorAll(".fold")),foldObj={},vals=[];foldEls.forEach(function(x){var v=parseNumber(x.value);foldObj[x.dataset.fold]=v;vals.push(v)});var jp=vals.every(function(v){return v!=null})?jacksonPollock7({sex:p.sex,age:ageFromBirthDate(p.birthDate),folds:vals}):null;store.updatePatient(p.id,{heightCm:H||p.heightCm});foldObj.biceps=parseNumber(document.querySelector("#skinBiceps").value);foldObj.medialCalf=parseNumber(document.querySelector("#skinMedialCalf").value);store.saveAssessment(p.id,{date:date,bio:{weight:W,bmi:parseNumber(bi.value)||bmi(W,H),fatPct:F,fatMass:parseNumber(fm.value)||C.fatMass,muscleMass:parseNumber(document.querySelector("#bioMuscle").value),leanMass:parseNumber(lm.value)||C.leanMass,visceral:parseNumber(document.querySelector("#bioVisceral").value),bmr:parseNumber(document.querySelector("#bioBmr").value)},skinfold:jp?{fatPct:jp.fatPct,density:jp.density,sum:jp.sum,folds:foldObj}:null,anthropometry:{waist:parseNumber(document.querySelector("#antWaist").value),hip:parseNumber(document.querySelector("#antHip").value),calf:parseNumber(document.querySelector("#antCalf").value),arm:parseNumber(document.querySelector("#antArm").value),neck:parseNumber(document.querySelector("#antNeck").value),abdomen:parseNumber(document.querySelector("#antAbdomen").value),thigh:parseNumber(document.querySelector("#antThigh").value)}});state.selected.add(date);state.selectionInitialized=true;state.tab="resumo";render();});
+  document.querySelector("#assessmentForm").addEventListener("submit",async function(e){e.preventDefault();var date=document.querySelector("#assessmentDate").value,W=parseNumber(w.value),H=parseNumber(h.value),F=parseNumber(f.value),C=compositionFromFatPercent(W,F),foldEls=[].slice.call(document.querySelectorAll(".fold")),foldObj={},vals=[];foldEls.forEach(function(x){var v=parseNumber(x.value);foldObj[x.dataset.fold]=v;vals.push(v)});var jp=vals.every(function(v){return v!=null})?jacksonPollock7({sex:p.sex,age:ageFromBirthDate(p.birthDate),folds:vals}):null;try{await store.updatePatient(p.id,{heightCm:H||p.heightCm});foldObj.biceps=parseNumber(document.querySelector("#skinBiceps").value);foldObj.medialCalf=parseNumber(document.querySelector("#skinMedialCalf").value);await store.saveAssessment(p.id,{date:date,bio:{weight:W,bmi:parseNumber(bi.value)||bmi(W,H),fatPct:F,fatMass:parseNumber(fm.value)||C.fatMass,muscleMass:parseNumber(document.querySelector("#bioMuscle").value),leanMass:parseNumber(lm.value)||C.leanMass,visceral:parseNumber(document.querySelector("#bioVisceral").value),bmr:parseNumber(document.querySelector("#bioBmr").value)},skinfold:jp?{fatPct:jp.fatPct,density:jp.density,sum:jp.sum,folds:foldObj}:null,anthropometry:{waist:parseNumber(document.querySelector("#antWaist").value),hip:parseNumber(document.querySelector("#antHip").value),calf:parseNumber(document.querySelector("#antCalf").value),arm:parseNumber(document.querySelector("#antArm").value),neck:parseNumber(document.querySelector("#antNeck").value),abdomen:parseNumber(document.querySelector("#antAbdomen").value),thigh:parseNumber(document.querySelector("#antThigh").value)}});state.selected.add(date);state.selectionInitialized=true;state.tab="resumo";render();}catch(err){alert(err.message||"Não foi possível salvar a avaliação.");}});
 }
 
 function bind(){
@@ -390,7 +390,7 @@ document.addEventListener("click",async function(e){
 
 function bindNewPatient(){
   var form=document.querySelector("#newPatientForm"); if(!form)return;
-  form.addEventListener("submit",function(e){e.preventDefault();var p=store.createPatient({fullName:document.querySelector("#npName").value.trim(),birthDate:document.querySelector("#npBirth").value,sex:document.querySelector("#npSex").value,email:document.querySelector("#npEmail").value.trim(),phone:document.querySelector("#npPhone").value.trim(),heightCm:parseNumber(document.querySelector("#npHeight").value)});state.patientId=p.id;state.tab="resumo";render();});
+  form.addEventListener("submit",async function(e){e.preventDefault();try{var p=await store.createPatient({fullName:document.querySelector("#npName").value.trim(),birthDate:document.querySelector("#npBirth").value,sex:document.querySelector("#npSex").value,email:document.querySelector("#npEmail").value.trim(),phone:document.querySelector("#npPhone").value.trim(),heightCm:parseNumber(document.querySelector("#npHeight").value)});state.patientId=p.id;state.tab="resumo";render();}catch(err){alert(err.message||"Não foi possível cadastrar o paciente.");}});
 }
 
 async function bootstrapAuth(){
@@ -417,8 +417,9 @@ async function bootstrapAuth(){
     state.membership=membership;
     state.auth=Boolean(membership&&membership.status==="active"&&(membership.globalRole==="owner"||membership.globalRole==="admin"||membership.appRoles&&membership.appRoles.anthropometry));
     state.authReady=true;
-    if(state.auth)render();
-    else renderUnauthorized();
+    if(state.auth){
+      try{await store.load();render();}catch(err){app.innerHTML='<main class="shell"><section class="card login"><h2 class="section-title">Erro ao carregar dados</h2><p class="muted">'+esc(err.message||"Não foi possível acessar o banco.")+'</p><button class="btn" data-action="logout">Sair</button></section></main>';}
+    } else renderUnauthorized();
   });
 }
 
