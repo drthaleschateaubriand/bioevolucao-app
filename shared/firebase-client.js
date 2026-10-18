@@ -3,6 +3,22 @@ import { PLATFORM_CONFIG, firebaseConfigured } from "./platform-config.js";
 let sdkPromise = null;
 let ctxPromise = null;
 
+function stripUndefined(value) {
+  if (Array.isArray(value)) {
+    return value.map(stripUndefined).filter(v => v !== undefined);
+  }
+  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    const out = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (val === undefined) continue;
+      const clean = stripUndefined(val);
+      if (clean !== undefined) out[key] = clean;
+    }
+    return out;
+  }
+  return value;
+}
+
 async function loadSdk() {
   if (!sdkPromise) {
     sdkPromise = Promise.all([
@@ -214,10 +230,10 @@ export const FirebaseClient = {
     const c = await context();
     if (!c) throw new Error("Firebase ainda não configurado.");
     const ref = c.firestoreSdk.doc(c.db, "memberships", uid);
-    await c.firestoreSdk.updateDoc(ref, {
+    await c.firestoreSdk.updateDoc(ref, stripUndefined({
       ...patch,
       updatedAt: c.firestoreSdk.serverTimestamp()
-    });
+    }));
   },
 
   async listApps() {
@@ -258,13 +274,13 @@ export const FirebaseClient = {
     const user = c && c.auth.currentUser;
     if (!c || !user) throw new Error("Sessão necessária.");
     const ref = c.firestoreSdk.doc(c.firestoreSdk.collection(c.db, "patients"));
-    const data = {
+    const data = stripUndefined({
       ...payload,
       organizationId: PLATFORM_CONFIG.organizationId,
       createdBy: user.uid,
       createdAt: c.firestoreSdk.serverTimestamp(),
       updatedAt: c.firestoreSdk.serverTimestamp()
-    };
+    });
     delete data.assessments;
     await c.firestoreSdk.setDoc(ref, data);
     return { id: ref.id, ...payload, assessments: [] };
@@ -286,12 +302,13 @@ export const FirebaseClient = {
     if (!c || !user) throw new Error("Sessão necessária.");
     const id = assessment.id || String(assessment.date || "").replace(/[^0-9]/g, "") || crypto.randomUUID();
     const ref = c.firestoreSdk.doc(c.db, "patients", patientId, "assessments", id);
-    await c.firestoreSdk.setDoc(ref, {
+    const payload = stripUndefined({
       ...assessment,
       clinicianId: user.uid,
       updatedAt: c.firestoreSdk.serverTimestamp(),
       createdAt: c.firestoreSdk.serverTimestamp()
-    }, { merge: true });
-    return { id, ...assessment };
+    });
+    await c.firestoreSdk.setDoc(ref, payload, { merge: true });
+    return stripUndefined({ id, ...assessment });
   }
 };
