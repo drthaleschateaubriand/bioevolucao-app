@@ -61,7 +61,10 @@ function newAssessment(p){
   '<section class="card eval-block"><div class="eval-head"><div><h3 class="section-title">Nova avaliação</h3><p class="muted">Preencha apenas o que foi medido.</p></div><div class="field"><label>Data</label><input id="assessmentDate" type="date" value="'+today+'" required></div></div></section>'+
   '<section class="card eval-block"><h3>Bioimpedância</h3><div class="grid">'+
   '<div class="field"><label>Peso (kg)</label><input id="bioWeight"></div><div class="field"><label>Altura (cm)</label><input id="bioHeight" value="'+(p.heightCm||"")+'"></div><div class="field"><label>IMC</label><input id="bioBmi" readonly></div><div class="field"><label>Gordura corporal (%)</label><input id="bioFatPct"></div><div class="field"><label>Massa gorda (kg)</label><input id="bioFatMass"></div><div class="field"><label>Massa muscular (kg)</label><input id="bioMuscle"></div><div class="field"><label>Massa livre de gordura (kg)</label><input id="bioLean"></div><div class="field"><label>Gordura visceral</label><input id="bioVisceral"></div><div class="field"><label>Metabolismo basal (kcal)</label><input id="bioBmr"></div></div>'+
-  '<div class="hr"></div><div class="field"><label>Fotos da bioimpedância</label><input id="bioPhotos" type="file" accept="image/*" multiple><div id="photoQueue" class="small muted">Nenhuma imagem selecionada.</div></div><p class="notice">Múltiplas imagens serão processadas por OCR com tela de conferência. Nesta prévia elas não são enviadas nem armazenadas.</p></section>'+
+  '<div class="hr"></div><div class="field"><label>Fotos da bioimpedância</label><input id="bioPhotos" type="file" accept="image/*" multiple><div id="photoQueue" class="small muted">Nenhuma imagem selecionada.</div></div>'+
+  '<div class="ocr-toolbar"><button class="btn soft" id="ocrStart" type="button" disabled>Ler fotos</button><div class="ocr-progress"><div class="ocr-progress-bar" id="ocrProgressBar"></div></div><span id="ocrStatus" class="small muted">Selecione uma ou mais imagens.</span></div>'+
+  '<div id="ocrReview" class="ocr-review hidden"><div class="eval-head"><div><h4>Conferir dados reconhecidos</h4><p class="small muted">Revise e corrija antes de aplicar ao formulário.</p></div><button class="btn primary" id="ocrApply" type="button">Aplicar ao formulário</button></div><div class="grid" id="ocrReviewGrid"></div><details class="optional-block"><summary>Ver texto reconhecido</summary><pre id="ocrRawText" class="ocr-raw"></pre></details></div>'+
+  '<p class="notice">As imagens são processadas no navegador e não são armazenadas após a conferência. O OCR é assistivo e exige revisão humana antes do salvamento.</p></section>'+
   '<section class="card eval-block"><h3>Adipômetro · Jackson-Pollock 7 dobras</h3><div class="grid">'+
   '<div class="field"><label>Peitoral (mm)</label><input class="fold" data-fold="chest"></div><div class="field"><label>Axilar média (mm)</label><input class="fold" data-fold="axillary"></div><div class="field"><label>Tríceps (mm)</label><input class="fold" data-fold="triceps"></div><div class="field"><label>Subescapular (mm)</label><input class="fold" data-fold="subscapular"></div><div class="field"><label>Abdominal (mm)</label><input class="fold" data-fold="abdomen"></div><div class="field"><label>Supra-ilíaca (mm)</label><input class="fold" data-fold="suprailiac"></div><div class="field"><label>Coxa (mm)</label><input class="fold" data-fold="thigh"></div></div>'+
   '<div class="kpis" id="skinResults">'+kpi("Somatório","—","mm")+kpi("Densidade","—","kg/L")+kpi("Gordura","—","%")+'</div>'+
@@ -181,12 +184,135 @@ function renderPatient(){
   bind(); if(state.tab==="nova")bindAssessment(p);
 }
 
+
+function normalizeOcrText(text){
+  return String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
+}
+
+function ocrNum(s){
+  if(s==null)return null;
+  var clean=String(s).replace(/[^\d,.\-]/g,"").replace(/\.(?=\d{3}(?:\D|$))/g,"").replace(",",".");
+  var n=Number(clean);
+  return Number.isFinite(n)?n:null;
+}
+
+function findOcrMetric(text, aliases, min, max, excludes){
+  var lines=String(text||"").split(/\r?\n/);
+  var normalized=lines.map(function(line){return {raw:line,norm:normalizeOcrText(line).toLowerCase()}});
+  for(var i=0;i<normalized.length;i++){
+    var row=normalized[i],hasAlias=aliases.some(function(a){return row.norm.indexOf(a)>=0});
+    if(!hasAlias)continue;
+    if(excludes&&excludes.some(function(x){return row.norm.indexOf(x)>=0}))continue;
+    var nums=row.raw.match(/-?\d{1,4}(?:[.,]\d{1,3})?/g)||[];
+    for(var j=0;j<nums.length;j++){
+      var v=ocrNum(nums[j]);
+      if(v!=null&&(min==null||v>=min)&&(max==null||v<=max))return v;
+    }
+    if(i+1<normalized.length){
+      var nextNums=normalized[i+1].raw.match(/-?\d{1,4}(?:[.,]\d{1,3})?/g)||[];
+      for(var k=0;k<nextNums.length;k++){
+        var nv=ocrNum(nextNums[k]);
+        if(nv!=null&&(min==null||nv>=min)&&(max==null||nv<=max))return nv;
+      }
+    }
+  }
+  return null;
+}
+
+function parseBioOcr(text){
+  return {
+    weight:findOcrMetric(text,["peso atual","peso corporal","weight"],20,350,["muscular","gordura","livre","ideal","alvo"]),
+    bmi:findOcrMetric(text,["indice de massa corporal","imc","bmi"],10,80),
+    fatPct:findOcrMetric(text,["percentual de gordura","gordura corporal","percent body fat","pbf"],1,80,["massa","peso"]),
+    fatMass:findOcrMetric(text,["massa gorda","massa de gordura","peso gorduroso","body fat mass"],1,250),
+    muscleMass:findOcrMetric(text,["massa muscular","peso muscular","skeletal muscle mass"],1,200),
+    leanMass:findOcrMetric(text,["massa livre de gordura","peso livre de gordura","fat free mass"],1,300),
+    visceral:findOcrMetric(text,["gordura visceral","visceral fat","visceral level"],0,100),
+    bmr:findOcrMetric(text,["metabolismo basal","taxa metabolica basal","basal metabolic rate","bmr"],500,5000)
+  };
+}
+
+function mergeOcrResults(results){
+  var keys=["weight","bmi","fatPct","fatMass","muscleMass","leanMass","visceral","bmr"],out={};
+  keys.forEach(function(key){
+    var vals=results.map(function(r){return r[key]}).filter(function(v){return v!=null});
+    if(!vals.length){out[key]=null;return;}
+    var counts={};
+    vals.forEach(function(v){var bucket=(Math.round(v*10)/10).toFixed(1);counts[bucket]=(counts[bucket]||0)+1});
+    var best=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a]})[0];
+    out[key]=Number(best);
+  });
+  return out;
+}
+
+function renderOcrReview(data,rawText){
+  var defs=[
+    ["weight","Peso","kg"],["bmi","IMC",""],["fatPct","Gordura corporal","%"],["fatMass","Massa gorda","kg"],
+    ["muscleMass","Massa muscular","kg"],["leanMass","Massa livre de gordura","kg"],["visceral","Gordura visceral",""],["bmr","Metabolismo basal","kcal"]
+  ];
+  document.querySelector("#ocrReviewGrid").innerHTML=defs.map(function(d){
+    var v=data[d[0]];
+    return '<div class="field"><label>'+d[1]+(d[2]?' ('+d[2]+')':'')+'</label><input data-ocr-key="'+d[0]+'" value="'+(v==null?"":String(v).replace(".",","))+'" placeholder="Não reconhecido"></div>';
+  }).join("");
+  document.querySelector("#ocrRawText").textContent=rawText;
+  document.querySelector("#ocrReview").classList.remove("hidden");
+}
+
 function bindAssessment(p){
   var w=document.querySelector("#bioWeight"),h=document.querySelector("#bioHeight"),f=document.querySelector("#bioFatPct"),bi=document.querySelector("#bioBmi"),fm=document.querySelector("#bioFatMass"),lm=document.querySelector("#bioLean");
   function autoBio(){var W=parseNumber(w.value),H=parseNumber(h.value),F=parseNumber(f.value),B=bmi(W,H),C=compositionFromFatPercent(W,F);if(B!=null)bi.value=formatNumber(B);if(C.fatMass!=null){fm.value=formatNumber(C.fatMass);lm.value=formatNumber(C.leanMass);}}
   [w,h,f].forEach(function(x){x.addEventListener("input",autoBio)});
   document.querySelectorAll(".fold").forEach(function(x){x.addEventListener("input",function(){var vals=[].slice.call(document.querySelectorAll(".fold")).map(function(y){return parseNumber(y.value)});if(vals.some(function(v){return v==null}))return;var o=jacksonPollock7({sex:p.sex,age:ageFromBirthDate(p.birthDate),folds:vals});if(o)document.querySelector("#skinResults").innerHTML=kpi("Somatório",formatNumber(o.sum,0),"mm")+kpi("Densidade",formatNumber(o.density,4),"kg/L")+kpi("Gordura",formatNumber(o.fatPct),"%");})});
-  document.querySelector("#bioPhotos").addEventListener("change",function(e){document.querySelector("#photoQueue").textContent=e.target.files.length+" imagem(ns) selecionada(s)."});
+  var photoInput=document.querySelector("#bioPhotos"),ocrStart=document.querySelector("#ocrStart"),ocrStatus=document.querySelector("#ocrStatus"),ocrBar=document.querySelector("#ocrProgressBar");
+  photoInput.addEventListener("change",function(e){
+    var n=e.target.files.length;
+    document.querySelector("#photoQueue").textContent=n?n+" imagem(ns) selecionada(s).":"Nenhuma imagem selecionada.";
+    ocrStart.disabled=!n;
+    ocrStatus.textContent=n?"Pronto para reconhecer.":"Selecione uma ou mais imagens.";
+    ocrBar.style.width="0%";
+    document.querySelector("#ocrReview").classList.add("hidden");
+  });
+  ocrStart.addEventListener("click",async function(){
+    var files=[].slice.call(photoInput.files||[]);
+    if(!files.length)return;
+    if(!window.Tesseract){ocrStatus.textContent="Mecanismo OCR indisponível. Verifique a conexão.";return;}
+    ocrStart.disabled=true;
+    var parsed=[],raw=[];
+    try{
+      for(var i=0;i<files.length;i++){
+        var base=(i/files.length)*100;
+        ocrStatus.textContent="Lendo "+(i+1)+" de "+files.length+": "+files[i].name;
+        var result=await window.Tesseract.recognize(files[i],"por+eng",{logger:function(m){
+          if(m.status==="recognizing text"&&m.progress!=null){
+            var pct=base+(m.progress*100/files.length);
+            ocrBar.style.width=Math.min(100,pct).toFixed(0)+"%";
+          }
+        }});
+        var textResult=result&&result.data?result.data.text:"";
+        raw.push("=== "+files[i].name+" ===\n"+textResult);
+        parsed.push(parseBioOcr(textResult));
+      }
+      var merged=mergeOcrResults(parsed);
+      renderOcrReview(merged,raw.join("\n\n"));
+      ocrBar.style.width="100%";
+      ocrStatus.textContent="Leitura concluída. Revise os números antes de aplicar.";
+    }catch(err){
+      console.error(err);
+      ocrStatus.textContent="Não foi possível concluir o OCR. Você pode preencher manualmente.";
+    }finally{
+      ocrStart.disabled=false;
+    }
+  });
+  document.querySelector("#ocrApply").addEventListener("click",function(){
+    var map={weight:"#bioWeight",bmi:"#bioBmi",fatPct:"#bioFatPct",fatMass:"#bioFatMass",muscleMass:"#bioMuscle",leanMass:"#bioLean",visceral:"#bioVisceral",bmr:"#bioBmr"};
+    document.querySelectorAll("[data-ocr-key]").forEach(function(input){
+      var val=parseNumber(input.value); if(val==null)return;
+      var target=document.querySelector(map[input.dataset.ocrKey]); if(target)target.value=formatNumber(val,input.dataset.ocrKey==="bmr"||input.dataset.ocrKey==="visceral"?0:1);
+    });
+    autoBio();
+    document.querySelector("#ocrReview").classList.add("hidden");
+    ocrStatus.textContent="Dados aplicados ao formulário. Confira antes de finalizar a avaliação.";
+  });
   document.querySelector("#assessmentForm").addEventListener("submit",function(e){e.preventDefault();var date=document.querySelector("#assessmentDate").value,W=parseNumber(w.value),H=parseNumber(h.value),F=parseNumber(f.value),C=compositionFromFatPercent(W,F),foldEls=[].slice.call(document.querySelectorAll(".fold")),foldObj={},vals=[];foldEls.forEach(function(x){var v=parseNumber(x.value);foldObj[x.dataset.fold]=v;vals.push(v)});var jp=vals.every(function(v){return v!=null})?jacksonPollock7({sex:p.sex,age:ageFromBirthDate(p.birthDate),folds:vals}):null;store.updatePatient(p.id,{heightCm:H||p.heightCm});foldObj.biceps=parseNumber(document.querySelector("#skinBiceps").value);foldObj.medialCalf=parseNumber(document.querySelector("#skinMedialCalf").value);store.saveAssessment(p.id,{date:date,bio:{weight:W,bmi:parseNumber(bi.value)||bmi(W,H),fatPct:F,fatMass:parseNumber(fm.value)||C.fatMass,muscleMass:parseNumber(document.querySelector("#bioMuscle").value),leanMass:parseNumber(lm.value)||C.leanMass,visceral:parseNumber(document.querySelector("#bioVisceral").value),bmr:parseNumber(document.querySelector("#bioBmr").value)},skinfold:jp?{fatPct:jp.fatPct,density:jp.density,sum:jp.sum,folds:foldObj}:null,anthropometry:{waist:parseNumber(document.querySelector("#antWaist").value),hip:parseNumber(document.querySelector("#antHip").value),calf:parseNumber(document.querySelector("#antCalf").value),arm:parseNumber(document.querySelector("#antArm").value),neck:parseNumber(document.querySelector("#antNeck").value),abdomen:parseNumber(document.querySelector("#antAbdomen").value),thigh:parseNumber(document.querySelector("#antThigh").value)}});state.selected.add(date);state.selectionInitialized=true;state.tab="resumo";render();});
 }
 
